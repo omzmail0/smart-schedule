@@ -1,7 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-// 👇 تم إضافة الأيقونات الناقصة هنا (ChevronRight, ChevronLeft, CheckSquare, Ban, X)
-import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, Ban, X } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, X } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where } from "firebase/firestore";
 import { generateId, HOURS, getWeekDays, formatDate, formatTime, getStartOfWeek, getSlotId, isPastTime } from './utils/helpers';
@@ -41,6 +40,22 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
   const days = getWeekDays(weekStart);
   const isScheduleFrozen = bookedSlots.length > 0;
 
+  // --- Logic to Filter Days ---
+  // If Admin: Show all days.
+  // If Member: Show only days that have at least one slot allowed by admin.
+  const visibleDays = days.filter(d => {
+    if (role === 'admin') return true;
+    return HOURS.some(h => adminSlots && adminSlots.includes(getSlotId(d, h)));
+  });
+
+  // If filtered days are empty (e.g. admin selected nothing this week), show a message or keep days empty
+  // Also adjust activeDayIndex to stay within bounds if filtered
+  useEffect(() => {
+    if (visibleDays.length > 0 && activeDayIndex >= visibleDays.length) {
+      setActiveDayIndex(0);
+    }
+  }, [visibleDays.length]);
+
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
       if (doc.exists()) setSelected(doc.data().slots || []); else setSelected([]);
@@ -48,10 +63,14 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
     return () => unsub();
   }, [userId]);
 
+  // Adjust active day on week change
   useEffect(() => {
-    const todayIndex = days.findIndex(d => d.toDateString() === new Date().toDateString());
-    setActiveDayIndex(todayIndex !== -1 ? todayIndex : 0);
-  }, [weekStart]);
+    // Try to find today in visible days
+    const todayStr = new Date().toDateString();
+    const todayIdx = visibleDays.findIndex(d => d.toDateString() === todayStr);
+    if (todayIdx !== -1) setActiveDayIndex(todayIdx);
+    else setActiveDayIndex(0);
+  }, [weekStart]); // re-run when week changes (and thus visibleDays might change)
 
   const toggleSlot = (date, hour) => {
     const slotId = getSlotId(date, hour);
@@ -92,74 +111,77 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
         </div>
       </div>
 
-      <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
-        {days.map((d, i) => {
-          const isSelected = activeDayIndex === i;
-          const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
-          return (
-            <button key={i} onClick={() => setActiveDayIndex(i)}
-              style={{ borderColor: isSelected ? themeColor : 'transparent', backgroundColor: isSelected ? `${themeColor}10` : 'white', color: isSelected ? themeColor : '#9ca3af' }}
-              className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all shadow-sm`}>
-              <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
-              <span className="text-xl font-bold">{d.getDate()}</span>
-              {hasData && <div style={{ backgroundColor: themeColor }} className="w-1.5 h-1.5 rounded-full mt-1"></div>}
-            </button>
-          );
-        })}
-      </div>
+      {visibleDays.length > 0 ? (
+        <>
+          <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
+            {visibleDays.map((d, i) => {
+              const isSelected = activeDayIndex === i;
+              const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
+              return (
+                <button key={i} onClick={() => setActiveDayIndex(i)}
+                  style={{ borderColor: isSelected ? themeColor : 'transparent', backgroundColor: isSelected ? `${themeColor}10` : 'white', color: isSelected ? themeColor : '#9ca3af' }}
+                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all shadow-sm`}>
+                  <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
+                  <span className="text-xl font-bold">{d.getDate()}</span>
+                  {hasData && <div style={{ backgroundColor: themeColor }} className="w-1.5 h-1.5 rounded-full mt-1"></div>}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen ? 'opacity-80' : ''}`}>
-        <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(days[activeDayIndex])}</h4>
-        
-        <div className="grid grid-cols-3 gap-3">
-          {HOURS.map(hour => {
-            const slotId = getSlotId(days[activeDayIndex], hour);
-            const isSelected = selected.includes(slotId);
-            const isOwnerAdmin = role === 'admin';
-            const isAllowed = isOwnerAdmin || (!adminSlots || adminSlots.includes(slotId));
-            const isPast = isPastTime(days[activeDayIndex], hour);
-            const isBooked = bookedSlots.some(m => m.slot === slotId);
+          <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen ? 'opacity-80' : ''}`}>
+            <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(visibleDays[activeDayIndex])}</h4>
             
-            // --- UX: Hide unavailable slots for members ---
-            if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
+            <div className="grid grid-cols-3 gap-3">
+              {HOURS.map(hour => {
+                const slotId = getSlotId(visibleDays[activeDayIndex], hour);
+                const isSelected = selected.includes(slotId);
+                const isOwnerAdmin = role === 'admin';
+                const isAllowed = isOwnerAdmin || (!adminSlots || adminSlots.includes(slotId));
+                const isPast = isPastTime(visibleDays[activeDayIndex], hour);
+                const isBooked = bookedSlots.some(m => m.slot === slotId);
+                
+                // Hide unavailable slots for members
+                if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
 
-            let slotStyle = {};
-            let slotClass = "bg-gray-50 border-gray-100 text-gray-400";
+                let slotStyle = {};
+                let slotClass = "bg-gray-50 border-gray-100 text-gray-400";
 
-            if (isBooked) {
-               return (
-                 <div key={hour} onClick={() => toggleSlot(days[activeDayIndex], hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90`}>
-                    <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
-                    <span className="text-[9px]">تم الحجز</span>
-                 </div>
-               );
-            }
-            if (isPast) slotClass = "bg-gray-50 opacity-30 cursor-not-allowed text-gray-300";
-            else if (!isAllowed) slotClass = "bg-gray-50 opacity-40 cursor-not-allowed border-dashed border-gray-200";
-            else if (isSelected) {
-               slotStyle = { backgroundColor: themeColor, color: 'white', boxShadow: `0 4px 12px ${themeColor}60` };
-               slotClass = "transform scale-105 font-bold border-transparent";
-            } else slotClass = "bg-white border-gray-200 text-gray-600 hover:border-gray-400";
-            
-            if (isScheduleFrozen && !isBooked) slotClass += " cursor-not-allowed opacity-60";
+                if (isBooked) {
+                  return (
+                    <div key={hour} onClick={() => toggleSlot(visibleDays[activeDayIndex], hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90`}>
+                        <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
+                        <span className="text-[9px]">تم الحجز</span>
+                    </div>
+                  );
+                }
+                if (isPast) slotClass = "bg-gray-50 opacity-30 cursor-not-allowed text-gray-300";
+                else if (!isAllowed) slotClass = "bg-gray-50 opacity-40 cursor-not-allowed border-dashed border-gray-200";
+                else if (isSelected) {
+                  slotStyle = { backgroundColor: themeColor, color: 'white', boxShadow: `0 4px 12px ${themeColor}60` };
+                  slotClass = "transform scale-105 font-bold border-transparent";
+                } else slotClass = "bg-white border-gray-200 text-gray-600 hover:border-gray-400";
+                
+                if (isScheduleFrozen && !isBooked) slotClass += " cursor-not-allowed opacity-60";
 
-            return (
-              <button key={hour} disabled={isPast || (!isAllowed && !isOwnerAdmin) || isScheduleFrozen} onClick={() => toggleSlot(days[activeDayIndex], hour)}
-                style={slotStyle} className={`h-14 rounded-2xl text-sm transition-all flex flex-col items-center justify-center border ${slotClass}`}>
-                {formatTime(hour)}
-              </button>
-            );
-          })}
+                return (
+                  <button key={hour} disabled={isPast || (!isAllowed && !isOwnerAdmin) || isScheduleFrozen} onClick={() => toggleSlot(visibleDays[activeDayIndex], hour)}
+                    style={slotStyle} className={`h-14 rounded-2xl text-sm transition-all flex flex-col items-center justify-center border ${slotClass}`}>
+                    {formatTime(hour)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xl border border-gray-100">
+           <Ban size={48} className="mb-4 opacity-20 text-gray-500"/>
+           <p className="font-bold text-gray-600">لا توجد أيام متاحة هذا الأسبوع</p>
+           <p className="text-xs mt-2 text-gray-400">يرجى انتظار المدير لتحديد المواعيد</p>
         </div>
-        
-        {/* Empty State */}
-        {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(days[activeDayIndex], h)))) && role !== 'admin' && (
-           <div className="text-center py-10 text-gray-400 flex flex-col items-center">
-              <Ban size={32} className="mb-2 opacity-20"/>
-              <p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p>
-           </div>
-        )}
-      </div>
+      )}
+
       {!isScheduleFrozen && <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>}
     </div>
   );
@@ -306,7 +328,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ... (باقي التبويبات Settings, Members, etc. كما هي) ... */}
+        {/* ... (باقي التبويبات Settings, Members, etc. كما هي تماماً) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
