@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays } from 'lucide-react';
+// 👇 هنا كان الخطأ، تمت إضافة CheckCircle2
+import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../utils/firebase';
 import { getStartOfWeek, getWeekDays, getSlotId, isPastTime, formatDate, formatTime, HOURS } from '../utils/helpers';
@@ -69,7 +70,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     setSelected(newSelected);
     setHasUnsavedChanges(true);
 
-    // إضافة تأثير اهتزاز بسيط للهاتف عند الاختيار (لتحسين التجربة)
+    // تأثير اهتزاز بسيط
     if (navigator.vibrate) navigator.vibrate(30);
   };
 
@@ -101,7 +102,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   }, {});
 
   return (
-    <div className="pb-32"> {/* زيادة المسافة السفلية عشان الشريط الجديد */}
+    <div className="pb-32">
       
       {/* رسالة الجدول المغلق */}
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
@@ -162,7 +163,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 
                 if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
 
-                // تصميم الزر (الساعة)
                 if (isBooked) {
                   return (
                     <div key={hour} className="h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90 cursor-not-allowed">
@@ -188,7 +188,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                     );
                 }
 
-                // الحالة العادية (متاح للاختيار)
                 return (
                   <button 
                     key={hour} 
@@ -205,9 +204,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         ${isScheduleFrozen && !readOnlyView ? 'cursor-not-allowed opacity-60' : ''}
                     `}
                   >
-                    {/* أيقونة تظهر فقط عند التحديد */}
                     {isSelected && <div className="absolute top-1 right-1 opacity-50"><Check size={10} strokeWidth={4}/></div>}
-                    
                     <span className="flex items-center gap-1">
                         {!isSelected && <Clock size={12} className="opacity-30"/>}
                         {formatTime(hour)}
@@ -233,20 +230,18 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* شريط الإجراءات السفلي (Action Bar) - تم تحسينه */}
+      {/* شريط الإجراءات السفلي (Action Bar) */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-4 right-4 z-30">
             <div className="bg-white/90 backdrop-blur-md p-2 rounded-[1.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/50 flex items-center gap-3">
-                {/* زر غير مناسب لي */}
                 <button 
-                    onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم التبليغ."); } }} 
+                    onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم الإبلاغ."); } }} 
                     className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
                     title="غير متاح طوال الأيام"
                 >
                     <UserX size={20}/>
                 </button>
 
-                {/* زر الحفظ الرئيسي */}
                 <button 
                     onClick={handleInitialSave} 
                     disabled={selected.length === 0 && !hasUnsavedChanges} 
@@ -277,7 +272,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
          </div>
       )}
 
-      {/* نافذة المراجعة (Review Modal) */}
+      {/* نافذة المراجعة */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
