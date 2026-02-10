@@ -98,7 +98,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   }, {});
 
   return (
-    <div className="pb-40"> {/* زيادة المسافة السفلية لمنع التداخل */}
+    <div className="pb-40"> 
       
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
 
@@ -117,7 +117,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {daysToShow.length > 0 ? (
         <>
-          <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
+          {/* تم إضافة pt-6 هنا لحل مشكلة القص */}
+          <div className="flex overflow-x-auto pt-6 pb-4 gap-3 no-scrollbar px-2 snap-x">
             {daysToShow.map((d, i) => {
               const dateKey = d.toISOString().split('T')[0];
               const isSelected = activeDayIndex === i;
@@ -129,7 +130,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                       backgroundColor: isSelected ? `${themeColor}10` : 'white', 
                       color: isSelected ? themeColor : '#9ca3af' 
                   }}
-                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm ${isSelected ? 'scale-105 shadow-md' : 'scale-100'}`}>
+                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm ${isSelected ? 'scale-110 shadow-lg -translate-y-1' : 'scale-100'}`}>
                   <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
                   <span className="text-xl font-bold">{d.getDate()}</span>
                   {hasData && <div style={{ backgroundColor: themeColor }} className="w-1.5 h-1.5 rounded-full mt-1"></div>}
@@ -222,24 +223,26 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* شريط الإجراءات السفلي - الآن يظهر بشكل صحيح داخل الحاوية */}
+      {/* شريط الإجراءات السفلي المعدل */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
-            {/* الحاوية الداخلية لتحديد العرض ومنع التمدد */}
             <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
+                
+                {/* زر "لا يوجد مواعيد مناسبة" بالنص الكامل */}
                 <button 
                     onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم الإبلاغ."); } }} 
-                    className="w-14 h-14 flex items-center justify-center bg-white border border-gray-100 text-red-500 rounded-2xl shadow-lg hover:bg-red-50 transition-colors"
-                    title="غير متاح طوال الأيام"
+                    className="flex-1 h-14 bg-white border-2 border-red-100 text-red-500 rounded-2xl font-bold text-xs shadow-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                 >
-                    <UserX size={24}/>
+                    <UserX size={18}/>
+                    <span>لا يوجد مواعيد مناسبة لي</span>
                 </button>
 
+                {/* زر الحفظ */}
                 <button 
                     onClick={handleInitialSave} 
                     disabled={selected.length === 0 && !hasUnsavedChanges} 
                     style={{ backgroundColor: themeColor }}
-                    className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-xl transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
+                    className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-white font-bold shadow-xl transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
                 >
                     {hasUnsavedChanges ? (
                         <><span>حفظ التغييرات</span> <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs">{selected.length}</span></>
@@ -251,7 +254,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
          </div>
       )}
       
-      {/* زر الحفظ العائم للأدمن */}
       {role === 'admin' && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
              <div className="max-w-lg mx-auto pointer-events-auto">
@@ -267,7 +269,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
          </div>
       )}
 
-      {/* مودال المراجعة */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
