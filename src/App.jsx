@@ -24,8 +24,8 @@ const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
     <div className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-200 flex justify-around items-center z-40 pb-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]">
       <button onClick={() => setActiveTab('home')} className={navItemClass('home')} style={{ color: activeTab === 'home' ? color : undefined }}><Home size={28} strokeWidth={activeTab === 'home' ? 2.5 : 2} /><span className="text-[10px]">الرئيسية</span></button>
       {role === 'admin' && (<>
-        <button onClick={() => setActiveTab('members')} className={navItemClass('members')} style={{ color: activeTab === 'members' ? color : undefined }}><Users size={28} strokeWidth={activeTab === 'members' ? 2.5 : 2} /><span className="text-[10px]">المتطوعين</span></button>
-        <button onClick={() => setActiveTab('analysis')} className={navItemClass('analysis')} style={{ color: activeTab === 'analysis' ? color : undefined }}><Star size={28} strokeWidth={activeTab === 'analysis' ? 2.5 : 2} /><span className="text-[10px]">التحليل</span></button>
+        <button onClick={() => setActiveTab('members')} className={navItemClass('members')} style={{ color: activeTab === 'members' ? color : undefined }}><Users size={28} strokeWidth={activeTab === 'members' ? 2.5 : 2} /><span className="text-[10px]">الأعضاء</span></button>
+        <button onClick={() => setActiveTab('analysis')} className={navItemClass('analysis')} style={{ color: activeTab === 'analysis' ? color : undefined }}><Star size={28} strokeWidth={activeTab === 'analysis' ? 2.5 : 2} /><span className="text-[10px]">تحليل</span></button>
         <button onClick={() => setActiveTab('settings')} className={navItemClass('settings')} style={{ color: activeTab === 'settings' ? color : undefined }}><Settings size={28} strokeWidth={activeTab === 'settings' ? 2.5 : 2} /><span className="text-[10px]">الإعدادات</span></button>
       </>)}
       {role !== 'admin' && (<button onClick={() => setActiveTab('profile')} className={navItemClass('profile')} style={{ color: activeTab === 'profile' ? color : undefined }}><Menu size={28} strokeWidth={activeTab === 'profile' ? 2.5 : 2} /><span className="text-[10px]">حسابي</span></button>)}
@@ -313,7 +313,7 @@ export default function App() {
       <div className="bg-white px-6 py-4 sticky top-0 z-20 flex justify-between items-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           {settings.logo ? <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover border border-gray-100"/> : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: settings.primaryColor }}>{settings.teamName[0]}</div>}
-          <div><h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1><p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'مدير الفريق' : `مرحباً ${user.name}`}</p></div>
+          <div><h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1><p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'منظم الفريق' : `مرحباً ${user.name}`}</p></div>
         </div>
         <Button variant="ghost" onClick={() => { setUser(null); setView('login'); }}><LogOut size={20}/></Button>
       </div>
