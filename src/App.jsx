@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 👇 تم إضافة Calendar و Clock وأيضاً المكونات الجديدة Toast و ConfirmModal
 import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock } from 'lucide-react';
 import { db } from './utils/firebase';
-import { collection, doc, setDoc, updateDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
 // استيراد المكونات
@@ -31,7 +30,6 @@ export default function App() {
   const [inspectMember, setInspectMember] = useState(null);
   const fileInputRef = useRef(null);
 
-  // --- حالات التنبيهات الجديدة ---
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
@@ -39,6 +37,27 @@ export default function App() {
   const triggerConfirm = (title, message, action, isDestructive = false) => {
       setConfirmData({ title, message, action, isDestructive });
   };
+
+  // 1. التأكد من وجود حساب للأدمن مرة واحدة فقط عند التحميل
+  useEffect(() => {
+    const initAdmin = async () => {
+        const adminRef = doc(db, "users", "admin");
+        const adminSnap = await getDoc(adminRef);
+        // ننشئ الأدمن فقط إذا لم يكن موجوداً في قاعدة البيانات نهائياً
+        if (!adminSnap.exists()) {
+            await setDoc(adminRef, {
+                id: "admin",
+                name: "المدير",
+                username: "admin",
+                password: "admin", // كلمة السر الافتراضية
+                role: "admin",
+                createdAt: serverTimestamp()
+            });
+            console.log("Admin account initialized");
+        }
+    };
+    initAdmin();
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
@@ -68,11 +87,13 @@ export default function App() {
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
+  // دالة الدخول المصححة (تتحقق فقط ولا تنشئ حسابات)
   const handleLogin = async (loginData) => {
     if (!loginData.username || !loginData.password) return showToast("يرجى إكمال جميع البيانات", "error");
     try {
         const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
         const snap = await getDocs(q);
+        
         if (!snap.empty) {
             const userData = snap.docs[0].data();
             setUser(userData);
@@ -81,16 +102,7 @@ export default function App() {
             setActiveTab('home');
             showToast(`مرحباً بك يا ${userData.name}`);
         } else {
-            if (loginData.username === 'admin') {
-                const adminData = { id: "admin", name: "المدير", role: "admin", username: "admin", password: loginData.password };
-                await setDoc(doc(db, "users", "admin"), adminData);
-                setUser(adminData);
-                localStorage.setItem('smartScheduleUser', JSON.stringify(adminData));
-                setView('app');
-                setActiveTab('home');
-            } else {
-                showToast("بيانات الدخول غير صحيحة", "error");
-            }
+            showToast("بيانات الدخول غير صحيحة", "error");
         }
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); }
   };
@@ -111,7 +123,17 @@ export default function App() {
     try {
         const id = editingMemberId || generateId();
         const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: 'member', createdAt: serverTimestamp() };
+        
+        // تحديث البيانات في قاعدة البيانات
         await setDoc(doc(db, "users", id), userData, { merge: true });
+        
+        // إذا كان المستخدم يعدل بياناته الشخصية (الأدمن مثلاً)، نحدث الـ LocalStorage والـ State
+        if (user && user.id === id) {
+            const updatedUser = { ...user, ...userData };
+            setUser(updatedUser);
+            localStorage.setItem('smartScheduleUser', JSON.stringify(updatedUser));
+        }
+
         setIsModalOpen(false);
         showToast(editingMemberId ? "تم تعديل بيانات العضو" : "تمت إضافة عضو جديد");
     } catch (e) { showToast(e.message, "error"); }
@@ -180,7 +202,6 @@ export default function App() {
     return { text: 'لم يحدد', color: 'bg-yellow-100 text-yellow-600' };
   };
 
-  // 👇 دالة تلخيص المواعيد التي كانت تسبب المشكلة (تم التأكد من وجود Calendar و Clock)
   const getMemberScheduleSummary = (memberId) => {
     const slots = availability[memberId]?.slots || [];
     const grouped = slots.reduce((acc, slot) => {
@@ -195,7 +216,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
-      {/* Toast & Modal Components */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <ConfirmModal 
         isOpen={!!confirmData} 
@@ -340,7 +360,6 @@ export default function App() {
 
           </div>
           
-          {/* مودال الإضافة / التعديل */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
@@ -356,7 +375,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 👇 نافذة معاينة العضو (تم التأكد من استيراد Calendar و Clock لتعمل هنا) */}
           {inspectMember && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                <div className="bg-white rounded-3xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
