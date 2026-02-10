@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, RotateCcw, Lock, Info, CheckCircle2, Home, Menu } from 'lucide-react'; // Added Info, CheckCircle2
+// 👇 تم إضافة الأيقونات الناقصة هنا (ChevronRight, ChevronLeft, CheckSquare, Ban, X)
+import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, Ban, X } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where } from "firebase/firestore";
 import { generateId, HOURS, getWeekDays, formatDate, formatTime, getStartOfWeek, getSlotId, isPastTime } from './utils/helpers';
@@ -119,8 +120,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
             const isPast = isPastTime(days[activeDayIndex], hour);
             const isBooked = bookedSlots.some(m => m.slot === slotId);
             
-            // --- UX TWEAK: Hide unavailable slots for members ---
-            // If user is Member AND Slot is NOT allowed AND Slot is NOT booked => Don't render it.
+            // --- UX: Hide unavailable slots for members ---
             if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
 
             let slotStyle = {};
@@ -152,7 +152,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
           })}
         </div>
         
-        {/* رسالة في حالة عدم وجود مواعيد للموظف في هذا اليوم */}
+        {/* Empty State */}
         {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(days[activeDayIndex], h)))) && role !== 'admin' && (
            <div className="text-center py-10 text-gray-400 flex flex-col items-center">
               <Ban size={32} className="mb-2 opacity-20"/>
@@ -272,14 +272,11 @@ export default function App() {
         {activeTab === 'home' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
             
-            {/* --- إرشادات للموظف (UX Improved) --- */}
             {user.role !== 'admin' && (
               <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
                  <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
                  <h3 className="font-bold text-blue-900 mb-2 relative z-10 flex items-center gap-2"><CheckCircle2 size={18}/> تنبيه هام</h3>
-                 <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">
-                    يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق! 🚀
-                 </p>
+                 <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق! 🚀</p>
               </div>
             )}
 
@@ -309,7 +306,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ... (باقي التبويبات Settings, Members, etc. كما هي في النسخة السابقة تماماً) ... */}
+        {/* ... (باقي التبويبات Settings, Members, etc. كما هي) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
