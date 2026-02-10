@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Clock } from 'lucide-react';
+// 👇 تم إضافة Calendar و Clock وأيضاً المكونات الجديدة Toast و ConfirmModal
+import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, updateDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
@@ -9,7 +10,7 @@ import Button from './components/Button';
 import BottomNav from './components/BottomNav';
 import DailyScheduler from './components/DailyScheduler';
 import AuthScreen from './components/AuthScreen';
-import { Toast, ConfirmModal } from './components/UI'; // استيراد المكونات الجديدة
+import { Toast, ConfirmModal } from './components/UI';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -31,10 +32,9 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   // --- حالات التنبيهات الجديدة ---
-  const [toast, setToast] = useState(null); // { message, type }
-  const [confirmData, setConfirmData] = useState(null); // { title, message, action, isDestructive }
+  const [toast, setToast] = useState(null);
+  const [confirmData, setConfirmData] = useState(null);
 
-  // دوال مساعدة لاستدعاء التنبيهات
   const showToast = (message, type = 'success') => setToast({ message, type });
   const triggerConfirm = (title, message, action, isDestructive = false) => {
       setConfirmData({ title, message, action, isDestructive });
@@ -126,7 +126,7 @@ export default function App() {
             await deleteDoc(doc(db, "availability", memberId));
             showToast("تم حذف العضو بنجاح");
           },
-          true // isDestructive
+          true 
       );
   };
 
@@ -180,6 +180,7 @@ export default function App() {
     return { text: 'لم يحدد', color: 'bg-yellow-100 text-yellow-600' };
   };
 
+  // 👇 دالة تلخيص المواعيد التي كانت تسبب المشكلة (تم التأكد من وجود Calendar و Clock)
   const getMemberScheduleSummary = (memberId) => {
     const slots = availability[memberId]?.slots || [];
     const grouped = slots.reduce((acc, slot) => {
@@ -339,6 +340,7 @@ export default function App() {
 
           </div>
           
+          {/* مودال الإضافة / التعديل */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
@@ -354,6 +356,7 @@ export default function App() {
             </div>
           )}
 
+          {/* 👇 نافذة معاينة العضو (تم التأكد من استيراد Calendar و Clock لتعمل هنا) */}
           {inspectMember && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                <div className="bg-white rounded-3xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
