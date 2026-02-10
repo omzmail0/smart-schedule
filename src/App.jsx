@@ -1,8 +1,8 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Calendar, Users, Star, X, ChevronRight, ChevronLeft, CheckSquare, Home, Menu, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, RotateCcw, Lock, Info, CheckCircle2, Home, Menu } from 'lucide-react'; // Added Info, CheckCircle2
 import { db } from './utils/firebase';
-import { collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where } from "firebase/firestore";
 import { generateId, HOURS, getWeekDays, formatDate, formatTime, getStartOfWeek, getSlotId, isPastTime } from './utils/helpers';
 
 // --- Components ---
@@ -42,8 +42,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
-      if (doc.exists()) setSelected(doc.data().slots || []);
-      else setSelected([]);
+      if (doc.exists()) setSelected(doc.data().slots || []); else setSelected([]);
     });
     return () => unsub();
   }, [userId]);
@@ -55,7 +54,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
 
   const toggleSlot = (date, hour) => {
     const slotId = getSlotId(date, hour);
-    if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي ولا يمكن تعديله.");
+    if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
     
@@ -110,6 +109,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
 
       <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen ? 'opacity-80' : ''}`}>
         <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(days[activeDayIndex])}</h4>
+        
         <div className="grid grid-cols-3 gap-3">
           {HOURS.map(hour => {
             const slotId = getSlotId(days[activeDayIndex], hour);
@@ -119,13 +119,17 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
             const isPast = isPastTime(days[activeDayIndex], hour);
             const isBooked = bookedSlots.some(m => m.slot === slotId);
             
+            // --- UX TWEAK: Hide unavailable slots for members ---
+            // If user is Member AND Slot is NOT allowed AND Slot is NOT booked => Don't render it.
+            if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
+
             let slotStyle = {};
             let slotClass = "bg-gray-50 border-gray-100 text-gray-400";
 
             if (isBooked) {
                return (
-                 <div key={hour} onClick={() => toggleSlot(days[activeDayIndex], hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 cursor-not-allowed opacity-90`}>
-                    <div className="flex items-center gap-1"><Lock size={12}/> {formatTime(hour)}</div>
+                 <div key={hour} onClick={() => toggleSlot(days[activeDayIndex], hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90`}>
+                    <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
                     <span className="text-[9px]">تم الحجز</span>
                  </div>
                );
@@ -147,6 +151,14 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
             );
           })}
         </div>
+        
+        {/* رسالة في حالة عدم وجود مواعيد للموظف في هذا اليوم */}
+        {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(days[activeDayIndex], h)))) && role !== 'admin' && (
+           <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+              <Ban size={32} className="mb-2 opacity-20"/>
+              <p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p>
+           </div>
+        )}
       </div>
       {!isScheduleFrozen && <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>}
     </div>
@@ -162,7 +174,6 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
-  // 👇 تم وضع لونك كقيمة افتراضية هنا
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
 
@@ -175,11 +186,7 @@ export default function App() {
     const checkAdmin = async () => {
        const q = query(collection(db, "users"), where("username", "==", "admin"));
        const snap = await getDocs(q);
-       if (snap.empty) {
-          await setDoc(doc(db, "users", "admin"), {
-             id: "admin", name: "المدير", role: "admin", username: "admin", password: "admin"
-          });
-       }
+       if (snap.empty) { await setDoc(doc(db, "users", "admin"), { id: "admin", name: "المدير", role: "admin", username: "admin", password: "admin" }); }
     };
     checkAdmin();
   }, []);
@@ -210,17 +217,8 @@ export default function App() {
   const openAddModal = () => { setMemberForm({ name: '', username: '', password: '' }); setEditingMemberId(null); setIsModalOpen(true); };
   const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
   const closeModal = () => { setIsModalOpen(false); setEditingMemberId(null); };
-
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
-
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-       const reader = new FileReader();
-       reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); };
-       reader.readAsDataURL(file);
-    }
-  };
+  const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; reader.readAsDataURL(file); } };
 
   const analyzeSchedule = async () => {
     if (adminSlots.length === 0) return alert("حدد أوقاتك أولاً");
@@ -239,32 +237,15 @@ export default function App() {
     setAnalysisResult(suggestions);
   };
 
-  const bookMeeting = async (slot) => {
-    if (!window.confirm("حجز الموعد؟")) return;
-    const id = generateId();
-    await setDoc(doc(db, "meetings", id), { id, slot, createdAt: new Date().toISOString() });
-    setAnalysisResult(null);
-  };
-
-  const cancelMeeting = async (meetingId) => {
-    if (!window.confirm("إلغاء الاجتماع؟")) return;
-    await deleteDoc(doc(db, "meetings", meetingId));
-  };
-
-  const resetAllAvailability = async () => {
-    if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return;
-    const snap = await getDocs(collection(db, "availability"));
-    snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); });
-    alert("تم التصفير. ابدأوا من جديد.");
-  };
+  const bookMeeting = async (slot) => { if (!window.confirm("حجز الموعد؟")) return; const id = generateId(); await setDoc(doc(db, "meetings", id), { id, slot, createdAt: new Date().toISOString() }); setAnalysisResult(null); };
+  const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
+  const resetAllAvailability = async () => { if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return; const snap = await getDocs(collection(db, "availability")); snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); }); alert("تم التصفير. ابدأوا من جديد."); };
 
   if (view === 'login') {
     return (
       <div className="min-h-screen flex flex-col justify-center bg-gray-50 p-6" dir="rtl">
         <div className="text-center mb-10 animate-fade-in">
-          {settings.logo ? <img src={settings.logo} className="w-24 h-24 mx-auto mb-4 rounded-2xl object-cover shadow-lg"/> : 
-            <div className="inline-flex p-6 bg-white rounded-3xl mb-4 shadow-md" style={{ color: settings.primaryColor }}><Calendar size={40}/></div>
-          }
+          {settings.logo ? <img src={settings.logo} className="w-24 h-24 mx-auto mb-4 rounded-2xl object-cover shadow-lg"/> : <div className="inline-flex p-6 bg-white rounded-3xl mb-4 shadow-md" style={{ color: settings.primaryColor }}><Calendar size={40}/></div>}
           <h1 className="text-3xl font-black text-gray-800">{settings.teamName}</h1>
           <p className="text-gray-400 mt-2 font-medium">تسجيل الدخول</p>
         </div>
@@ -281,13 +262,8 @@ export default function App() {
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
       <div className="bg-white px-6 py-4 sticky top-0 z-20 flex justify-between items-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
-          {settings.logo ? <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover border border-gray-100"/> :
-             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: settings.primaryColor }}>{settings.teamName[0]}</div>
-          }
-          <div>
-            <h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1>
-            <p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'مدير الفريق' : `مرحباً ${user.name}`}</p>
-          </div>
+          {settings.logo ? <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover border border-gray-100"/> : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: settings.primaryColor }}>{settings.teamName[0]}</div>}
+          <div><h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1><p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'مدير الفريق' : `مرحباً ${user.name}`}</p></div>
         </div>
         <Button variant="ghost" onClick={() => { setUser(null); setView('login'); }}><LogOut size={20}/></Button>
       </div>
@@ -295,6 +271,18 @@ export default function App() {
       <div className="p-5 max-w-lg mx-auto pb-24">
         {activeTab === 'home' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+            
+            {/* --- إرشادات للموظف (UX Improved) --- */}
+            {user.role !== 'admin' && (
+              <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
+                 <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
+                 <h3 className="font-bold text-blue-900 mb-2 relative z-10 flex items-center gap-2"><CheckCircle2 size={18}/> تنبيه هام</h3>
+                 <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">
+                    يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق! 🚀
+                 </p>
+              </div>
+            )}
+
             {meetings.length > 0 && (
                <div>
                  <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">📅 اجتماعات مؤكدة</h3>
@@ -304,13 +292,8 @@ export default function App() {
                      return (
                        <div key={meet.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between gap-4">
                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: settings.primaryColor }}>
-                                <span className="font-bold text-xl">{formatTime(h).split(':')[0]}</span>
-                            </div>
-                            <div>
-                              <div className="font-bold text-gray-800 text-lg">اجتماع</div>
-                              <div className="text-sm font-medium text-gray-400">{formatDate(new Date(y, m-1, d))}</div>
-                            </div>
+                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: settings.primaryColor }}><span className="font-bold text-xl">{formatTime(h).split(':')[0]}</span></div>
+                            <div><div className="font-bold text-gray-800 text-lg">اجتماع</div><div className="text-sm font-medium text-gray-400">{formatDate(new Date(y, m-1, d))}</div></div>
                          </div>
                          {user.role === 'admin' && <button onClick={() => cancelMeeting(meet.id)} className="bg-red-50 text-red-500 p-2 rounded-xl text-xs font-bold">إلغاء</button>}
                        </div>
@@ -320,30 +303,21 @@ export default function App() {
                </div>
             )}
             <div>
-               <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">
-                 {user.role === 'admin' ? '⚡ الأوقات المتاحة للفريق' : '📌 حدد أوقات فراغك'}
-               </h3>
+               <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">{user.role === 'admin' ? '⚡ الأوقات المتاحة للفريق' : '📌 حدد أوقات فراغك'}</h3>
                <DailyScheduler userId={user.id} role={user.role} adminSlots={adminSlots} themeColor={settings.primaryColor} bookedSlots={meetings} />
             </div>
           </div>
         )}
 
+        {/* ... (باقي التبويبات Settings, Members, etc. كما هي في النسخة السابقة تماماً) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
                 <div><label className="block text-sm font-bold text-gray-500 mb-2">اسم الفريق</label><input className="w-full h-12 px-4 bg-gray-50 rounded-xl font-bold text-gray-700 outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} value={settings.teamName} onChange={e => setSettings({...settings, teamName: e.target.value})} /></div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-500 mb-2">اللون</label>
-                  <div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">
-                    {/* 👇 تم إضافة لونك هنا في أول القائمة */}
-                    {['#0e395c', '#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#000000'].map(c => (
-                      <button key={c} onClick={() => setSettings({...settings, primaryColor: c})} className={`w-12 h-12 rounded-full border-4 flex-shrink-0 transition-transform ${settings.primaryColor === c ? 'scale-110 border-gray-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                </div>
+                <div><label className="block text-sm font-bold text-gray-500 mb-2">اللون</label><div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">{['#0e395c', '#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#000000'].map(c => (<button key={c} onClick={() => setSettings({...settings, primaryColor: c})} className={`w-12 h-12 rounded-full border-4 flex-shrink-0 transition-transform ${settings.primaryColor === c ? 'scale-110 border-gray-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />))}</div></div>
                 <div><label className="block text-sm font-bold text-gray-500 mb-2">الشعار</label><div className="flex items-center gap-4">{settings.logo && <img src={settings.logo} className="w-16 h-16 rounded-xl object-cover border"/>}<button onClick={() => fileInputRef.current.click()} className="flex-1 h-16 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-400"><Upload size={20}/> <span>تغيير</span></button><input type="file" ref={fileInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" /></div></div>
-                <Button onClick={saveSettings} style={{ backgroundColor: settings.primaryColor }} className="w-full">حفظ الهوية</Button>
+                <Button onClick={saveSettings} style={{ backgroundColor: settings.primaryColor }} className="w-full text-white">حفظ الهوية</Button>
                 <hr className="border-gray-100 my-4"/>
                 <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100"><h4 className="font-bold text-orange-800 mb-1 text-sm">بداية دورة جديدة؟</h4><p className="text-xs text-orange-600 mb-3">تحذير: هذا يمسح جميع الجداول.</p><Button onClick={resetAllAvailability} className="w-full h-10 bg-orange-200 text-orange-800 shadow-none hover:bg-orange-300 border-none"><RotateCcw size={16}/> تصفير كامل</Button></div>
              </div>
@@ -371,7 +345,7 @@ export default function App() {
                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${settings.primaryColor}20`, color: settings.primaryColor }}><Star size={40}/></div>
                  <h2 className="font-bold text-xl mb-2">أفضل وقت</h2>
                  <p className="text-gray-400 text-sm mb-6">سيتم مقارنة الجداول المتاحة</p>
-                 <Button onClick={analyzeSchedule} style={{ backgroundColor: settings.primaryColor }} className="w-full">تحليل الآن</Button>
+                 <Button onClick={analyzeSchedule} style={{ backgroundColor: settings.primaryColor }} className="w-full text-white">تحليل الآن</Button>
               </div>
               {analysisResult && (
                  <div className="space-y-3">
@@ -408,7 +382,7 @@ export default function App() {
               <input placeholder="الاسم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
               <input placeholder="اسم المستخدم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value})} />
               <input placeholder="كلمة المرور" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
-              <Button onClick={handleMemberSubmit} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2">{editingMemberId ? 'حفظ' : 'إضافة'}</Button>
+              <Button onClick={handleMemberSubmit} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">{editingMemberId ? 'حفظ' : 'إضافة'}</Button>
             </div>
             <button onClick={closeModal} className="w-full mt-4 text-gray-400 font-bold text-sm">إلغاء</button>
           </div>
