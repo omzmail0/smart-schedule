@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import Button from './Button';
 
-const AuthScreen = ({ onLogin, settings }) => {
+// استقبل دالة التنبيه
+const AuthScreen = ({ onLogin, settings, onShowToast }) => { // Note: We need to pass onShowToast from App.jsx if we use it here directly, but handleLogin in App.jsx handles the logic/toasts mostly.
   const [loginData, setLoginData] = useState({ username: '', password: '' });
 
   const handleSubmit = (e) => {

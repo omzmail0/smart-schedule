@@ -5,7 +5,8 @@ import { db } from '../utils/firebase';
 import { getStartOfWeek, getWeekDays, getSlotId, isPastTime, formatDate, formatTime, HOURS } from '../utils/helpers';
 import Button from './Button';
 
-const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], readOnlyView = false, readOnlySlots = [] }) => {
+// استقبل الدوال الجديدة من الـ Props
+const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], readOnlyView = false, readOnlySlots = [], onShowToast, onTriggerConfirm }) => {
   const [selected, setSelected] = useState([]);
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -14,7 +15,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // --- منطق السحب بالماوس (Drag to Scroll) ---
   const sliderRef = useRef(null);
   const [isDown, setIsDown] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -31,10 +31,9 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - sliderRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // سرعة السحب
+    const walk = (x - startX) * 2;
     sliderRef.current.scrollLeft = scrollLeft - walk;
   };
-  // ---------------------------------------------
 
   const days = getWeekDays(weekStart);
   const isScheduleFrozen = bookedSlots.length > 0;
@@ -78,12 +77,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     
-    if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
-    if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
-    if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
+    // استبدال alert بـ onShowToast
+    if (bookedSlots.some(m => m.slot === slotId)) return onShowToast("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.", "error");
+    if (isScheduleFrozen) return onShowToast("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.", "error");
+    if (isPastTime(date, hour)) return onShowToast("لا يمكن تحديد وقت في الماضي!", "error");
     
     const isOwnerAdmin = role === 'admin';
-    if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
+    if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return onShowToast("الوقت غير متاح من المدير.", "error");
     
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
     setSelected(newSelected);
@@ -103,12 +103,30 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active', updatedAt: serverTimestamp() }, { merge: true });
       setHasUnsavedChanges(false);
       if (onSave) onSave();
-      if (role === 'admin') alert("✅ تم الحفظ (سحابياً)");
+      if (role === 'admin') onShowToast("✅ تم الحفظ (سحابياً)");
       else {
           setIsReviewing(false);
           setIsSuccess(true);
       }
-    } catch (e) { alert("خطأ: " + e.message); }
+    } catch (e) { onShowToast("حدث خطأ أثناء الحفظ", "error"); }
+  };
+
+  const handleMarkBusy = () => {
+      onTriggerConfirm(
+          "غير متاح", 
+          "هل أنت متأكد أنك غير متاح في أي وقت؟ سيتم مسح اختياراتك الحالية.",
+          async () => {
+            try {
+                await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
+                setSelected([]); 
+                setHasUnsavedChanges(false);
+                onShowToast("تم الإبلاغ أنك غير متاح");
+            } catch(e) {
+                onShowToast(e.message, "error");
+            }
+          },
+          true // isDestructive
+      );
   };
 
   const groupedSelections = selected.reduce((acc, slot) => {
@@ -153,7 +171,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
               const isSelected = activeDayIndex === i;
               const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
               return (
-                <button key={dateKey} onClick={() => !isDown && setActiveDayIndex(i)} // منع الضغط أثناء السحب
+                <button key={dateKey} onClick={() => !isDown && setActiveDayIndex(i)} 
                   style={{ 
                       borderColor: isSelected ? themeColor : 'transparent', 
                       backgroundColor: isSelected ? `${themeColor}10` : 'white', 
@@ -258,7 +276,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
                 
                 <button 
-                    onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم الإبلاغ."); } }} 
+                    onClick={handleMarkBusy} 
                     className="flex-1 h-14 bg-white border-2 border-red-100 text-red-500 rounded-2xl font-bold text-xs shadow-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                 >
                     <UserX size={18}/>
