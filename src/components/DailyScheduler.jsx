@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// 👇 هنا كان الخطأ، تمت إضافة CheckCircle2
 import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../utils/firebase';
@@ -57,7 +56,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     
-    // التحققات
     if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
@@ -65,12 +63,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     const isOwnerAdmin = role === 'admin';
     if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
     
-    // تنفيذ التغيير
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
     setSelected(newSelected);
     setHasUnsavedChanges(true);
 
-    // تأثير اهتزاز بسيط
     if (navigator.vibrate) navigator.vibrate(30);
   };
 
@@ -102,12 +98,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   }, {});
 
   return (
-    <div className="pb-32">
+    <div className="pb-40"> {/* زيادة المسافة السفلية لمنع التداخل */}
       
-      {/* رسالة الجدول المغلق */}
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
 
-      {/* شريط التحكم بالتاريخ (للأدمن) */}
       {role === 'admin' && (
         <div className="flex justify-between items-center mb-6 px-2">
           <div className="flex items-center gap-2">
@@ -123,7 +117,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {daysToShow.length > 0 ? (
         <>
-          {/* شريط الأيام الأفقي */}
           <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
             {daysToShow.map((d, i) => {
               const dateKey = d.toISOString().split('T')[0];
@@ -145,7 +138,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             })}
           </div>
 
-          {/* حاوية الساعات */}
           <div className={`bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 min-h-[350px] transition-opacity ${isScheduleFrozen && !readOnlyView ? 'opacity-80' : ''}`}>
             <h4 className="text-center font-bold text-gray-400 mb-6 text-sm flex items-center justify-center gap-2">
                 <CalendarDays size={16}/>
@@ -230,28 +222,29 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* شريط الإجراءات السفلي (Action Bar) */}
+      {/* شريط الإجراءات السفلي - الآن يظهر بشكل صحيح داخل الحاوية */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
-         <div className="fixed bottom-24 left-4 right-4 z-30">
-            <div className="bg-white/90 backdrop-blur-md p-2 rounded-[1.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/50 flex items-center gap-3">
+         <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
+            {/* الحاوية الداخلية لتحديد العرض ومنع التمدد */}
+            <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
                 <button 
                     onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم الإبلاغ."); } }} 
-                    className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+                    className="w-14 h-14 flex items-center justify-center bg-white border border-gray-100 text-red-500 rounded-2xl shadow-lg hover:bg-red-50 transition-colors"
                     title="غير متاح طوال الأيام"
                 >
-                    <UserX size={20}/>
+                    <UserX size={24}/>
                 </button>
 
                 <button 
                     onClick={handleInitialSave} 
                     disabled={selected.length === 0 && !hasUnsavedChanges} 
                     style={{ backgroundColor: themeColor }}
-                    className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-white font-bold shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
+                    className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-xl transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
                 >
                     {hasUnsavedChanges ? (
                         <><span>حفظ التغييرات</span> <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs">{selected.length}</span></>
                     ) : (
-                        <><span>مراجعة واعتماد</span> <CheckCircle2 size={18}/></>
+                        <><span>مراجعة واعتماد</span> <CheckCircle2 size={20}/></>
                     )}
                 </button>
             </div>
@@ -260,19 +253,21 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       
       {/* زر الحفظ العائم للأدمن */}
       {role === 'admin' && !isScheduleFrozen && (
-         <div className="fixed bottom-24 left-6 right-6 z-30">
-             <Button 
-                onClick={saveChanges} 
-                disabled={!hasUnsavedChanges} 
-                style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#374151' }} 
-                className="w-full h-14 text-lg shadow-xl"
-             >
-                {hasUnsavedChanges ? '💾 حفظ التعديلات' : '✅ البيانات محفوظة'}
-             </Button>
+         <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
+             <div className="max-w-lg mx-auto pointer-events-auto">
+                <Button 
+                    onClick={saveChanges} 
+                    disabled={!hasUnsavedChanges} 
+                    style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#374151' }} 
+                    className="w-full h-14 text-lg shadow-xl"
+                >
+                    {hasUnsavedChanges ? '💾 حفظ التعديلات' : '✅ البيانات محفوظة'}
+                </Button>
+             </div>
          </div>
       )}
 
-      {/* نافذة المراجعة */}
+      {/* مودال المراجعة */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
@@ -313,7 +308,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* شاشة النجاح */}
       {isSuccess && (
          <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300 text-center">
             <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 animate-bounce">

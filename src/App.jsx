@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Clock } from 'lucide-react';
 import { db } from './utils/firebase';
-import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
 // استيراد المكونات
@@ -141,10 +141,8 @@ export default function App() {
     return { text: 'لم يحدد', color: 'bg-yellow-100 text-yellow-600' };
   };
 
-  // --- دالة مساعدة لتجهيز عرض مواعيد العضو بشكل منظم ---
   const getMemberScheduleSummary = (memberId) => {
     const slots = availability[memberId]?.slots || [];
-    // تجميع الساعات تحت كل تاريخ
     const grouped = slots.reduce((acc, slot) => {
         const [y, m, d, h] = slot.split('-');
         const dateKey = `${y}-${m}-${d}`;
@@ -152,8 +150,6 @@ export default function App() {
         acc[dateKey].push(parseInt(h));
         return acc;
     }, {});
-    
-    // تحويلها لمصفوفة وترتيبها زمنياً
     return Object.entries(grouped).sort((a, b) => new Date(a[0]) - new Date(b[0]));
   };
 
@@ -298,12 +294,9 @@ export default function App() {
         </div>
       )}
 
-      {/* نافذة معاينة العضو (التصميم الجديد المحسن) */}
       {inspectMember && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
            <div className="bg-white rounded-3xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
-              
-              {/* الرأس */}
               <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: settings.primaryColor }}>{inspectMember.name[0]}</div>
@@ -314,8 +307,6 @@ export default function App() {
                  </div>
                  <button onClick={() => setInspectMember(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100"><X size={18} className="text-gray-500"/></button>
               </div>
-
-              {/* المحتوى (القائمة) */}
               <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-gray-50/50">
                  {(() => {
                     const summary = getMemberScheduleSummary(inspectMember.id);
@@ -344,8 +335,6 @@ export default function App() {
                     ));
                  })()}
               </div>
-              
-              {/* التذييل */}
               <div className="p-4 border-t border-gray-100 bg-white">
                  <button onClick={() => setInspectMember(null)} className="w-full h-12 rounded-xl border-2 border-gray-100 font-bold text-gray-500 hover:bg-gray-50">إغلاق</button>
               </div>
