@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../utils/firebase';
@@ -13,6 +13,28 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [isReviewing, setIsReviewing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // --- منطق السحب بالماوس (Drag to Scroll) ---
+  const sliderRef = useRef(null);
+  const [isDown, setIsDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e) => {
+    setIsDown(true);
+    setStartX(e.pageX - sliderRef.current.offsetLeft);
+    setScrollLeft(sliderRef.current.scrollLeft);
+  };
+  const handleMouseLeave = () => setIsDown(false);
+  const handleMouseUp = () => setIsDown(false);
+  const handleMouseMove = (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - sliderRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // سرعة السحب
+    sliderRef.current.scrollLeft = scrollLeft - walk;
+  };
+  // ---------------------------------------------
 
   const days = getWeekDays(weekStart);
   const isScheduleFrozen = bookedSlots.length > 0;
@@ -117,20 +139,27 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {daysToShow.length > 0 ? (
         <>
-          {/* تم إضافة pt-6 هنا لحل مشكلة القص */}
-          <div className="flex overflow-x-auto pt-6 pb-4 gap-3 no-scrollbar px-2 snap-x">
+          {/* شريط الأيام القابل للسحب */}
+          <div 
+            ref={sliderRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className={`flex overflow-x-auto pt-6 pb-4 gap-3 no-scrollbar px-2 snap-x cursor-grab active:cursor-grabbing ${isDown ? 'snap-none' : ''}`}
+          >
             {daysToShow.map((d, i) => {
               const dateKey = d.toISOString().split('T')[0];
               const isSelected = activeDayIndex === i;
               const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
               return (
-                <button key={dateKey} onClick={() => setActiveDayIndex(i)}
+                <button key={dateKey} onClick={() => !isDown && setActiveDayIndex(i)} // منع الضغط أثناء السحب
                   style={{ 
                       borderColor: isSelected ? themeColor : 'transparent', 
                       backgroundColor: isSelected ? `${themeColor}10` : 'white', 
                       color: isSelected ? themeColor : '#9ca3af' 
                   }}
-                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm ${isSelected ? 'scale-110 shadow-lg -translate-y-1' : 'scale-100'}`}>
+                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm select-none ${isSelected ? 'scale-110 shadow-lg -translate-y-1' : 'scale-100'}`}>
                   <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
                   <span className="text-xl font-bold">{d.getDate()}</span>
                   {hasData && <div style={{ backgroundColor: themeColor }} className="w-1.5 h-1.5 rounded-full mt-1"></div>}
@@ -223,12 +252,11 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* شريط الإجراءات السفلي المعدل */}
+      {/* شريط الإجراءات السفلي */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
             <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
                 
-                {/* زر "لا يوجد مواعيد مناسبة" بالنص الكامل */}
                 <button 
                     onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم الإبلاغ."); } }} 
                     className="flex-1 h-14 bg-white border-2 border-red-100 text-red-500 rounded-2xl font-bold text-xs shadow-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
@@ -237,7 +265,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                     <span>لا يوجد مواعيد مناسبة لي</span>
                 </button>
 
-                {/* زر الحفظ */}
                 <button 
                     onClick={handleInitialSave} 
                     disabled={selected.length === 0 && !hasUnsavedChanges} 
@@ -269,6 +296,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
          </div>
       )}
 
+      {/* مودال المراجعة */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
