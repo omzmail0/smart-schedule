@@ -301,7 +301,6 @@ export default function App() {
           <input type="password" className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="كلمة المرور" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
           <Button className="w-full h-14 text-lg mt-4" style={{ backgroundColor: settings.primaryColor }}>دخول</Button>
         </form>
-        <div className="mt-8 text-center text-xs text-gray-300">Admin: admin / admin</div>
       </div>
     );
   }
