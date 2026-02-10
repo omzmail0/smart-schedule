@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, X } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, X, Send, ListChecks, Clock } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where } from "firebase/firestore";
 import { generateId, HOURS, getWeekDays, formatDate, formatTime, getStartOfWeek, getSlotId, isPastTime } from './utils/helpers';
@@ -26,7 +26,7 @@ const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
       {role === 'admin' && (<>
         <button onClick={() => setActiveTab('members')} className={navItemClass('members')} style={{ color: activeTab === 'members' ? color : undefined }}><Users size={28} strokeWidth={activeTab === 'members' ? 2.5 : 2} /><span className="text-[10px]">الأعضاء</span></button>
         <button onClick={() => setActiveTab('analysis')} className={navItemClass('analysis')} style={{ color: activeTab === 'analysis' ? color : undefined }}><Star size={28} strokeWidth={activeTab === 'analysis' ? 2.5 : 2} /><span className="text-[10px]">تحليل</span></button>
-        <button onClick={() => setActiveTab('settings')} className={navItemClass('settings')} style={{ color: activeTab === 'settings' ? color : undefined }}><Settings size={28} strokeWidth={activeTab === 'settings' ? 2.5 : 2} /><span className="text-[10px]">الإعدادات</span></button>
+        <button onClick={() => setActiveTab('settings')} className={navItemClass('settings')} style={{ color: activeTab === 'settings' ? color : undefined }}><Settings size={28} strokeWidth={activeTab === 'settings' ? 2.5 : 2} /><span className="text-[10px]">إعدادات</span></button>
       </>)}
       {role !== 'admin' && (<button onClick={() => setActiveTab('profile')} className={navItemClass('profile')} style={{ color: activeTab === 'profile' ? color : undefined }}><Menu size={28} strokeWidth={activeTab === 'profile' ? 2.5 : 2} /><span className="text-[10px]">حسابي</span></button>)}
     </div>
@@ -36,8 +36,6 @@ const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
 const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [] }) => {
   const [selected, setSelected] = useState([]);
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
-  
-  // FIX 1: Initial state correctly calculates "Today" index
   const [activeDayIndex, setActiveDayIndex] = useState(() => {
     const today = new Date();
     const start = getStartOfWeek(today);
@@ -47,6 +45,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   });
 
   const [memberDays, setMemberDays] = useState([]); 
+  const [isReviewing, setIsReviewing] = useState(false); // Modal state for review
+  const [isSuccess, setIsSuccess] = useState(false); // Modal state for success message
   const isScheduleFrozen = bookedSlots.length > 0;
 
   useEffect(() => {
@@ -56,7 +56,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     return () => unsub();
   }, [userId]);
 
-  // Logic for Member Days (Get ALL days with allowed slots)
+  // Logic for Member Days
   useEffect(() => {
     if (role !== 'admin' && adminSlots.length > 0) {
       const uniqueDates = [...new Set(adminSlots.map(slot => slot.split('-').slice(0, 3).join('-')))];
@@ -72,7 +72,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const daysToShow = role === 'admin' ? getWeekDays(weekStart) : memberDays;
   const activeDate = daysToShow.length > 0 ? daysToShow[activeDayIndex] || daysToShow[0] : new Date();
 
-  // FIX 2: Logic for week switching via arrows (Syncs index if possible)
   useEffect(() => {
     if (role === 'admin') {
       const todayStr = new Date().toDateString();
@@ -82,13 +81,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     }
   }, [weekStart]); 
 
-  // FIX 3: "Go Today" now explicitly sets the index
   const goToday = () => {
     const today = new Date();
     const start = getStartOfWeek(today);
     setWeekStart(start);
-    
-    // Force find today index in the fresh week list
     const currentWeekDays = getWeekDays(start);
     const idx = currentWeekDays.findIndex(d => d.toDateString() === today.toDateString());
     setActiveDayIndex(idx !== -1 ? idx : 0);
@@ -107,14 +103,29 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     setSelected(newSelected);
   };
 
-  const saveChanges = async () => {
+  // --- مرحلة المراجعة والحفظ ---
+  const handleInitialSave = () => {
+    setIsReviewing(true); // Open review modal
+  };
+
+  const confirmSave = async () => {
     if (isScheduleFrozen) return;
     try {
       await setDoc(doc(db, "availability", userId), { slots: selected }, { merge: true });
       if (onSave) onSave();
-      alert(" ✅ تم الحفظ ");
+      setIsReviewing(false);
+      setIsSuccess(true); // Show success message
     } catch (e) { alert("خطأ في الحفظ: " + e.message); }
   };
+
+  // Group selections for the review summary
+  const groupedSelections = selected.reduce((acc, slot) => {
+    const [y, m, d, h] = slot.split('-');
+    const dateKey = `${y}-${m}-${d}`;
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(h);
+    return acc;
+  }, {});
 
   return (
     <div className="pb-24">
@@ -206,11 +217,74 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xl border border-gray-100 shadow-sm mt-4">
            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4"><Calendar size={40} className="text-gray-300"/></div>
            <p className="font-bold text-gray-600">لا توجد أيام متاحة حالياً</p>
-           <p className="text-xs mt-2 text-gray-400">يرجى انتظار المشرف لتحديد المواعيد القادمة.</p>
+           <p className="text-xs mt-2 text-gray-400">يرجى انتظار المدير لتحديد المواعيد القادمة.</p>
         </div>
       )}
 
-      {!isScheduleFrozen && <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>}
+      {/* Floating Save Button - Only shows if there are days available */}
+      {daysToShow.length > 0 && !isScheduleFrozen && (
+         <Button variant="float" onClick={handleInitialSave} style={{ backgroundColor: themeColor }} className="text-white">
+            حفظ التغييرات ({selected.length}) 💾
+         </Button>
+      )}
+
+      {/* --- Review Modal (Bottom Sheet) --- */}
+      {isReviewing && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-lg rounded-t-[30px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
+             <div className="text-center mb-6">
+                <div className="w-16 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <h3 className="text-xl font-bold text-gray-800">مراجعة اختياراتك</h3>
+                <p className="text-gray-400 text-sm">تأكد من تحديد كل الأوقات المناسبة لك</p>
+             </div>
+
+             <div className="space-y-4 mb-6">
+                {Object.keys(groupedSelections).length === 0 ? (
+                   <p className="text-center text-red-500 bg-red-50 p-4 rounded-xl">لم تقم باختيار أي موعد! هل أنت مشغول تماماً؟</p>
+                ) : (
+                   Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
+                      <div key={dateStr} className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
+                         <div className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                            <Calendar size={16}/> {formatDate(new Date(dateStr))}
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                            {hours.sort((a,b)=>a-b).map(h => (
+                               <span key={h} className="text-xs bg-white border border-gray-200 px-3 py-1 rounded-lg font-bold text-gray-600">
+                                  {formatTime(h)}
+                               </span>
+                            ))}
+                         </div>
+                      </div>
+                   ))
+                )}
+             </div>
+
+             <div className="flex gap-3">
+                <Button onClick={confirmSave} style={{ backgroundColor: themeColor }} className="flex-1 text-white">تأكيد وإرسال <Send size={16}/></Button>
+                <Button onClick={() => setIsReviewing(false)} variant="outline" className="flex-1">رجوع للتعديل</Button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Success Modal --- */}
+      {isSuccess && (
+         <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+               <CheckCircle2 size={64} className="text-green-600"/>
+            </div>
+            <h2 className="text-2xl font-black text-gray-800 mb-2 text-center">تم التسجيل بنجاح! 🎉</h2>
+            <p className="text-center text-gray-500 mb-8 max-w-xs leading-relaxed">
+               شكراً لك. تم حفظ الأوقات التي تناسبك.
+               <br/>
+               ننتظر الآن تسجيل باقي أعضاء الفريق ليقوم المنظم باعتماد الموعد النهائي.
+            </p>
+            <div className="w-full max-w-sm space-y-3">
+               <Button onClick={() => setIsSuccess(false)} variant="outline" className="w-full">تعديل المواعيد مرة أخرى</Button>
+               {/* زر إغلاق بسيط أو عودة للرئيسية */}
+            </div>
+         </div>
+      )}
     </div>
   );
 };
@@ -313,7 +387,7 @@ export default function App() {
       <div className="bg-white px-6 py-4 sticky top-0 z-20 flex justify-between items-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           {settings.logo ? <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover border border-gray-100"/> : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: settings.primaryColor }}>{settings.teamName[0]}</div>}
-          <div><h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1><p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'منظم الفريق' : `مرحباً ${user.name}`}</p></div>
+          <div><h1 className="font-extrabold text-gray-800 text-lg leading-tight">{settings.teamName}</h1><p className="text-[10px] font-bold text-gray-400">{user.role === 'admin' ? 'مدير الفريق' : `مرحباً ${user.name}`}</p></div>
         </div>
         <Button variant="ghost" onClick={() => { setUser(null); setView('login'); }}><LogOut size={20}/></Button>
       </div>
