@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Check, UserMinus } from 'lucide-react';
-import { db } from './utils/firebase';
-import { collection, doc, setDoc, updateDoc, getDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil } from 'lucide-react';
+import { db, firebaseConfig } from './utils/firebase'; // استوردنا firebaseConfig
+import { initializeApp } from "firebase/app"; // نحتاج هذا لإنشاء تطبيق ثانوي
+import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
@@ -24,6 +25,10 @@ export default function App() {
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
+  // لإدارة إضافة الأعضاء (مودال)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
+  
   const [inspectMember, setInspectMember] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -32,18 +37,8 @@ export default function App() {
         if (currentUser) {
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             if (userDoc.exists()) {
-                const userData = userDoc.data();
-                
-                // التحقق من حالة الحساب (Pending vs Active)
-                if (userData.status === 'pending') {
-                    await signOut(auth);
-                    alert("⏳ تم استلام طلبك، بانتظار موافقة المدير.");
-                    setUser(null);
-                    setView('login');
-                } else {
-                    setUser({ ...userData, id: currentUser.uid });
-                    setView('app');
-                }
+                setUser({ ...userDoc.data(), id: currentUser.uid });
+                setView('app');
             }
         }
     });
@@ -52,13 +47,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    
-    // جلب جميع المستخدمين (للمدير) أو الأعضاء النشطين فقط (للباقي)
-    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => {
-        const allUsers = snap.docs.map(d => d.data()).filter(u => u.role !== 'admin');
-        setMembers(allUsers);
-    });
-
+    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
@@ -71,43 +60,14 @@ export default function App() {
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  const handleAuth = async (isRegistering, formData) => {
-    if (!formData.username || !formData.password) return alert("أكمل البيانات");
-    const email = `${formData.username}@team.com`;
-    
+  // تسجيل الدخول فقط
+  const handleLogin = async (loginData) => {
+    if (!loginData.username || !loginData.password) return alert("أكمل البيانات");
+    const email = `${loginData.username}@team.com`;
     try {
-        if (isRegistering) {
-            if (!formData.name) return alert("يرجى كتابة الاسم الكامل");
-            
-            const userCredential = await createUserWithEmailAndPassword(auth, email, formData.password);
-            const uid = userCredential.user.uid;
-            // أول مستخدم (admin) يكون نشط تلقائياً، الباقي pending
-            const isFirstAdmin = formData.username === 'admin';
-            
-            await setDoc(doc(db, "users", uid), {
-                id: uid,
-                name: formData.name, // الاسم الحر (الاسم الكامل)
-                username: formData.username,
-                role: isFirstAdmin ? 'admin' : 'member',
-                status: isFirstAdmin ? 'active' : 'pending', // الحالة الافتراضية معلق
-                createdAt: serverTimestamp()
-            });
-            
-            if (isFirstAdmin) {
-                alert("تم إنشاء حساب المدير.");
-            } else {
-                await signOut(auth);
-                alert("✅ تم إرسال الطلب! انتظر موافقة المدير.");
-            }
-        } else {
-            await signInWithEmailAndPassword(auth, email, formData.password);
-        }
+        await signInWithEmailAndPassword(auth, email, loginData.password);
     } catch (error) {
-        let msg = "حدث خطأ";
-        if (error.code === 'auth/email-already-in-use') msg = "هذا المستخدم مسجل بالفعل";
-        if (error.code === 'auth/invalid-credential') msg = "بيانات الدخول غير صحيحة";
-        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة";
-        alert(msg);
+        alert("بيانات الدخول غير صحيحة");
     }
   };
 
@@ -117,16 +77,52 @@ export default function App() {
       setView('login');
   };
 
-  // وظائف المدير (قبول/رفض الأعضاء)
-  const approveMember = async (memberId) => {
-      if(!window.confirm("الموافقة على العضو؟")) return;
-      await updateDoc(doc(db, "users", memberId), { status: 'active' });
+  // --- منطق إضافة عضو جديد (للأدمن فقط) ---
+  const handleAddMember = async () => {
+    if (!memberForm.name || !memberForm.username || !memberForm.password) return alert("أكمل البيانات");
+    
+    try {
+        // حيلة ذكية: ننشئ تطبيق Firebase ثانوي عشان ننشئ يوزر جديد من غير ما نخرج الأدمن الحالي
+        const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+        const secondaryAuth = getAuth(secondaryApp);
+        
+        const email = `${memberForm.username}@team.com`;
+        
+        // إنشاء المستخدم في Auth
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, memberForm.password);
+        const uid = userCredential.user.uid;
+        
+        // حفظ بياناته في Firestore
+        await setDoc(doc(db, "users", uid), {
+            id: uid,
+            name: memberForm.name,
+            username: memberForm.username,
+            role: 'member',
+            createdAt: serverTimestamp()
+        });
+
+        // تسجيل الخروج من التطبيق الثانوي وحذفه
+        await signOut(secondaryAuth);
+        
+        setIsModalOpen(false);
+        setMemberForm({ name: '', username: '', password: '' });
+        alert("تمت إضافة العضو بنجاح ✅");
+        
+    } catch (error) {
+        let msg = "حدث خطأ";
+        if (error.code === 'auth/email-already-in-use') msg = "اسم المستخدم موجود مسبقاً";
+        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة (6 أحرف على الأقل)";
+        alert(msg);
+        console.error(error);
+    }
   };
 
   const deleteMember = async (memberId) => {
-      if(!window.confirm("حذف/رفض العضو نهائياً؟")) return;
+      if(!window.confirm("حذف العضو نهائياً؟ (لا يمكن التراجع)")) return;
+      // ملاحظة: حذف المستخدم من Auth يتطلب Cloud Functions، هنا سنحذفه من البيانات فقط ولن يتمكن من الدخول
+      // لأننا نتحقق من وجوده في Firestore عند الدخول
       await deleteDoc(doc(db, "users", memberId));
-      await deleteDoc(doc(db, "availability", memberId)); // حذف جدوله أيضاً
+      await deleteDoc(doc(db, "availability", memberId));
   };
 
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
@@ -135,15 +131,12 @@ export default function App() {
   const analyzeSchedule = async () => {
     if (adminSlots.length === 0) return alert("حدد أوقاتك أولاً");
     const bookedSlotIds = meetings.map(m => m.slot);
-    // فقط الأعضاء النشطين يدخلون في التحليل
-    const activeMembers = members.filter(m => m.status === 'active');
-    
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      const availableMembers = activeMembers.filter(m => (availability[m.id]?.slots || []).includes(slot));
-      return { slot, count: availableMembers.length, total: activeMembers.length, names: availableMembers.map(m => m.name) };
+      const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
+      return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
     suggestions.sort((a, b) => b.count - a.count);
     setAnalysisResult(suggestions);
@@ -167,12 +160,8 @@ export default function App() {
   };
 
   if (view === 'login') {
-    return <AuthScreen onAuth={handleAuth} settings={settings} />;
+    return <AuthScreen onLogin={handleLogin} settings={settings} />;
   }
-
-  // فلترة الأعضاء للعرض
-  const pendingMembers = members.filter(m => m.status === 'pending');
-  const activeMembers = members.filter(m => m.status === 'active' || !m.status); // ندعم القديم بدون status
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -222,57 +211,36 @@ export default function App() {
         </div>
 
         {activeTab === 'members' && (
-           <div className="animate-in fade-in space-y-6">
-              
-              {/* قسم الطلبات المعلقة (للمدير فقط) */}
-              {user.role === 'admin' && pendingMembers.length > 0 && (
-                <div className="bg-orange-50 border border-orange-100 rounded-3xl p-4">
-                    <h3 className="font-bold text-orange-800 mb-3 px-1 flex items-center gap-2">⏳ طلبات الانضمام ({pendingMembers.length})</h3>
-                    <div className="space-y-2">
-                        {pendingMembers.map(m => (
-                            <div key={m.id} className="bg-white p-3 rounded-2xl flex justify-between items-center shadow-sm">
-                                <div>
-                                    <div className="font-bold text-gray-800">{m.name}</div>
-                                    <div className="text-xs text-gray-400">@{m.username}</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => approveMember(m.id)} className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center hover:bg-green-200"><Check size={16}/></button>
-                                    <button onClick={() => deleteMember(m.id)} className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200"><X size={16}/></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-              )}
-
-              {/* قائمة الأعضاء النشطين */}
-              <div>
-                <h3 className="font-bold text-gray-800 text-lg mb-3 px-1">الفريق الحالي</h3>
-                <div className="space-y-3">
-                    {activeMembers.length === 0 ? <p className="text-gray-400 text-center py-4">لا يوجد أعضاء نشطين بعد.</p> : activeMembers.map(m => {
-                        const status = getMemberStatus(m.id);
-                        return (
-                        <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
-                            <div className="flex gap-3 items-center">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
-                            <div>
-                                <div className="font-bold text-gray-800">{m.name}</div>
-                                <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
-                            </div>
-                            </div>
-                            {user.role === 'admin' && (
-                                <div className="flex gap-2">
-                                    {status.text === 'تم التحديد' && (
-                                        <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
-                                    )}
-                                    <button onClick={() => deleteMember(m.id)} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
-                                </div>
-                            )}
-                        </div>
-                        );
-                    })}
-                </div>
+           <div className="animate-in fade-in space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <h2 className="font-bold text-lg">الأعضاء</h2>
+                {user.role === 'admin' && (
+                    <button onClick={() => setIsModalOpen(true)} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:opacity-80 transition-all"><UserPlus size={14}/> إضافة عضو</button>
+                )}
               </div>
+              
+              {members.length === 0 ? <p className="text-center text-gray-400 py-10">لا يوجد أعضاء، أضف أول عضو!</p> : members.map(m => {
+                const status = getMemberStatus(m.id);
+                return (
+                  <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+                    <div className="flex gap-3 items-center">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
+                      <div>
+                        <div className="font-bold text-gray-800">{m.name}</div>
+                        <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
+                      </div>
+                    </div>
+                    {user.role === 'admin' && (
+                        <div className="flex gap-2">
+                        {status.text === 'تم التحديد' && (
+                            <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
+                        )}
+                        <button onClick={() => deleteMember(m.id)} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
+                        </div>
+                    )}
+                  </div>
+                );
+              })}
            </div>
         )}
 
@@ -326,6 +294,22 @@ export default function App() {
 
       </div>
       
+      {/* مودال إضافة عضو جديد */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <h3 className="text-xl font-bold mb-6 text-center">إضافة عضو جديد</h3>
+            <div className="space-y-4">
+              <input placeholder="الاسم الكامل (للعرض)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
+              <input placeholder="اسم المستخدم (إنجليزي للدخول)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} />
+              <input placeholder="كلمة المرور (6 أحرف ع الأقل)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
+              <Button onClick={handleAddMember} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">إنشاء الحساب</Button>
+            </div>
+            <button onClick={() => setIsModalOpen(false)} className="w-full mt-4 text-gray-400 font-bold text-sm">إلغاء</button>
+          </div>
+        </div>
+      )}
+
       {inspectMember && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
