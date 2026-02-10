@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil } from 'lucide-react';
+import { Trash2, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Check, UserMinus } from 'lucide-react';
 import { db } from './utils/firebase';
-import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, getDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
-// استيراد المكونات الجديدة
 import Button from './components/Button';
 import BottomNav from './components/BottomNav';
 import DailyScheduler from './components/DailyScheduler';
@@ -33,8 +32,18 @@ export default function App() {
         if (currentUser) {
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             if (userDoc.exists()) {
-                setUser({ ...userDoc.data(), id: currentUser.uid });
-                setView('app');
+                const userData = userDoc.data();
+                
+                // التحقق من حالة الحساب (Pending vs Active)
+                if (userData.status === 'pending') {
+                    await signOut(auth);
+                    alert("⏳ تم استلام طلبك، بانتظار موافقة المدير.");
+                    setUser(null);
+                    setView('login');
+                } else {
+                    setUser({ ...userData, id: currentUser.uid });
+                    setView('app');
+                }
             }
         }
     });
@@ -43,7 +52,13 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
+    
+    // جلب جميع المستخدمين (للمدير) أو الأعضاء النشطين فقط (للباقي)
+    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => {
+        const allUsers = snap.docs.map(d => d.data()).filter(u => u.role !== 'admin');
+        setMembers(allUsers);
+    });
+
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
@@ -56,29 +71,42 @@ export default function App() {
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  const handleAuth = async (isRegistering, loginData) => {
-    if (!loginData.username || !loginData.password) return alert("أكمل البيانات");
-    const email = `${loginData.username}@team.com`;
+  const handleAuth = async (isRegistering, formData) => {
+    if (!formData.username || !formData.password) return alert("أكمل البيانات");
+    const email = `${formData.username}@team.com`;
+    
     try {
         if (isRegistering) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, loginData.password);
+            if (!formData.name) return alert("يرجى كتابة الاسم الكامل");
+            
+            const userCredential = await createUserWithEmailAndPassword(auth, email, formData.password);
             const uid = userCredential.user.uid;
-            const role = loginData.username === 'admin' ? 'admin' : 'member';
+            // أول مستخدم (admin) يكون نشط تلقائياً، الباقي pending
+            const isFirstAdmin = formData.username === 'admin';
+            
             await setDoc(doc(db, "users", uid), {
                 id: uid,
-                name: loginData.username, 
-                username: loginData.username,
-                role: role
+                name: formData.name, // الاسم الحر (الاسم الكامل)
+                username: formData.username,
+                role: isFirstAdmin ? 'admin' : 'member',
+                status: isFirstAdmin ? 'active' : 'pending', // الحالة الافتراضية معلق
+                createdAt: serverTimestamp()
             });
-            alert("تم إنشاء الحساب بنجاح!");
+            
+            if (isFirstAdmin) {
+                alert("تم إنشاء حساب المدير.");
+            } else {
+                await signOut(auth);
+                alert("✅ تم إرسال الطلب! انتظر موافقة المدير.");
+            }
         } else {
-            await signInWithEmailAndPassword(auth, email, loginData.password);
+            await signInWithEmailAndPassword(auth, email, formData.password);
         }
     } catch (error) {
         let msg = "حدث خطأ";
-        if (error.code === 'auth/invalid-credential') msg = "بيانات الدخول خاطئة";
-        if (error.code === 'auth/email-already-in-use') msg = "هذا الاسم مستخدم بالفعل";
-        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة (يجب أن تكون 6 أحرف على الأقل)";
+        if (error.code === 'auth/email-already-in-use') msg = "هذا المستخدم مسجل بالفعل";
+        if (error.code === 'auth/invalid-credential') msg = "بيانات الدخول غير صحيحة";
+        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة";
         alert(msg);
     }
   };
@@ -89,18 +117,33 @@ export default function App() {
       setView('login');
   };
 
+  // وظائف المدير (قبول/رفض الأعضاء)
+  const approveMember = async (memberId) => {
+      if(!window.confirm("الموافقة على العضو؟")) return;
+      await updateDoc(doc(db, "users", memberId), { status: 'active' });
+  };
+
+  const deleteMember = async (memberId) => {
+      if(!window.confirm("حذف/رفض العضو نهائياً؟")) return;
+      await deleteDoc(doc(db, "users", memberId));
+      await deleteDoc(doc(db, "availability", memberId)); // حذف جدوله أيضاً
+  };
+
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
   const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; reader.readAsDataURL(file); } };
 
   const analyzeSchedule = async () => {
     if (adminSlots.length === 0) return alert("حدد أوقاتك أولاً");
     const bookedSlotIds = meetings.map(m => m.slot);
+    // فقط الأعضاء النشطين يدخلون في التحليل
+    const activeMembers = members.filter(m => m.status === 'active');
+    
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
-      return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
+      const availableMembers = activeMembers.filter(m => (availability[m.id]?.slots || []).includes(slot));
+      return { slot, count: availableMembers.length, total: activeMembers.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
     suggestions.sort((a, b) => b.count - a.count);
     setAnalysisResult(suggestions);
@@ -126,6 +169,10 @@ export default function App() {
   if (view === 'login') {
     return <AuthScreen onAuth={handleAuth} settings={settings} />;
   }
+
+  // فلترة الأعضاء للعرض
+  const pendingMembers = members.filter(m => m.status === 'pending');
+  const activeMembers = members.filter(m => m.status === 'active' || !m.status); // ندعم القديم بدون status
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -175,29 +222,57 @@ export default function App() {
         </div>
 
         {activeTab === 'members' && (
-           <div className="animate-in fade-in space-y-4">
-              <div className="flex justify-between items-center px-1"><h2 className="font-bold text-lg">الأعضاء</h2>
+           <div className="animate-in fade-in space-y-6">
+              
+              {/* قسم الطلبات المعلقة (للمدير فقط) */}
+              {user.role === 'admin' && pendingMembers.length > 0 && (
+                <div className="bg-orange-50 border border-orange-100 rounded-3xl p-4">
+                    <h3 className="font-bold text-orange-800 mb-3 px-1 flex items-center gap-2">⏳ طلبات الانضمام ({pendingMembers.length})</h3>
+                    <div className="space-y-2">
+                        {pendingMembers.map(m => (
+                            <div key={m.id} className="bg-white p-3 rounded-2xl flex justify-between items-center shadow-sm">
+                                <div>
+                                    <div className="font-bold text-gray-800">{m.name}</div>
+                                    <div className="text-xs text-gray-400">@{m.username}</div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => approveMember(m.id)} className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center hover:bg-green-200"><Check size={16}/></button>
+                                    <button onClick={() => deleteMember(m.id)} className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200"><X size={16}/></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+              )}
+
+              {/* قائمة الأعضاء النشطين */}
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg mb-3 px-1">الفريق الحالي</h3>
+                <div className="space-y-3">
+                    {activeMembers.length === 0 ? <p className="text-gray-400 text-center py-4">لا يوجد أعضاء نشطين بعد.</p> : activeMembers.map(m => {
+                        const status = getMemberStatus(m.id);
+                        return (
+                        <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+                            <div className="flex gap-3 items-center">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
+                            <div>
+                                <div className="font-bold text-gray-800">{m.name}</div>
+                                <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
+                            </div>
+                            </div>
+                            {user.role === 'admin' && (
+                                <div className="flex gap-2">
+                                    {status.text === 'تم التحديد' && (
+                                        <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
+                                    )}
+                                    <button onClick={() => deleteMember(m.id)} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
+                                </div>
+                            )}
+                        </div>
+                        );
+                    })}
+                </div>
               </div>
-              {members.map(m => {
-                const status = getMemberStatus(m.id);
-                return (
-                  <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
-                      <div>
-                        <div className="font-bold text-gray-800">{m.name}</div>
-                        <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {status.text === 'تم التحديد' && (
-                        <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
-                      )}
-                      <button onClick={() => { if(window.confirm('حذف؟')) deleteDoc(doc(db, "users", m.id)); }} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
-                    </div>
-                  </div>
-                );
-              })}
            </div>
         )}
 
