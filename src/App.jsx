@@ -107,15 +107,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     setSelected(newSelected);
   };
 
-  // --- Logic for Saving ---
-  const handleInitialSave = () => {
-    if (role === 'admin') {
-        saveChanges(); // Admin saves directly
-    } else {
-        setIsReviewing(true); // Members review first
-    }
-  };
-  
   const saveChanges = async () => {
     if (isScheduleFrozen) return;
     try {
@@ -127,6 +118,14 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
           setIsSuccess(true);
       }
     } catch (e) { alert("خطأ: " + e.message); }
+  };
+
+  const handleInitialSave = () => {
+    if (role === 'admin') {
+        saveChanges(); 
+    } else {
+        setIsReviewing(true); 
+    }
   };
 
   const markAsBusy = async () => {
@@ -182,7 +181,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
           <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen && !readOnlyView ? 'opacity-80' : ''}`}>
             <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(activeDate)}</h4>
-            
             <div className="grid grid-cols-3 gap-3">
               {HOURS.map(hour => {
                 const slotId = getSlotId(activeDate, hour);
@@ -222,12 +220,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 );
               })}
             </div>
-            
             {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(activeDate, h)))) && role !== 'admin' && (
-               <div className="text-center py-10 text-gray-400 flex flex-col items-center">
-                  <Ban size={32} className="mb-2 opacity-20"/>
-                  <p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p>
-               </div>
+               <div className="text-center py-10 text-gray-400 flex flex-col items-center"><Ban size={32} className="mb-2 opacity-20"/><p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p></div>
             )}
           </div>
         </>
@@ -239,24 +233,17 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* --- Action Buttons (For Members Only) --- */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-4 right-4 z-30 flex gap-3">
-            <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}>
-               <UserX size={16}/> غير مناسب لي
-            </Button>
-            <Button onClick={handleInitialSave} disabled={selected.length === 0} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">
-               حفظ التغييرات ({selected.length}) 💾
-            </Button>
+            <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}><UserX size={16}/> غير مناسب لي</Button>
+            <Button onClick={handleInitialSave} disabled={selected.length === 0} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">حفظ التغييرات ({selected.length}) 💾</Button>
          </div>
       )}
       
-      {/* Admin Save Button */}
       {role === 'admin' && !isScheduleFrozen && (
-         <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>
+         <Button variant="float" onClick={handleInitialSave} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>
       )}
 
-      {/* --- Review Modal --- */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[30px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
@@ -283,7 +270,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
-      {/* --- Success Modal --- */}
       {isSuccess && (
          <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300">
             <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce"><CheckCircle2 size={64} className="text-green-600"/></div>
@@ -305,14 +291,14 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
-  const [availability, setAvailability] = useState({}); // For admin to see member status
+  const [availability, setAvailability] = useState({});
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
-  const [inspectMember, setInspectMember] = useState(null); // Admin viewing member schedule
+  const [inspectMember, setInspectMember] = useState(null); 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -329,7 +315,6 @@ export default function App() {
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
-    // Listen to ALL availability for dashboard status
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
@@ -366,7 +351,6 @@ export default function App() {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      // Use the availability state we already have
       const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
       return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
@@ -378,7 +362,6 @@ export default function App() {
   const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
   const resetAllAvailability = async () => { if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return; const snap = await getDocs(collection(db, "availability")); snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); }); alert("تم التصفير. ابدأوا من جديد."); };
 
-  // Helper to get member status text/color
   const getMemberStatus = (mId) => {
     const userAvail = availability[mId];
     if (!userAvail) return { text: 'لم يدخل', color: 'bg-gray-100 text-gray-400' };
@@ -450,12 +433,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Members Tab with Status and Inspection */}
         {activeTab === 'members' && (
            <div className="animate-in fade-in space-y-4">
               <div className="flex justify-between items-center px-1"><h2 className="font-bold text-lg">الأعضاء</h2><button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1"><UserPlus size={14}/> جديد</button></div>
               
-              {/* Member List */}
               {members.map(m => {
                 const status = getMemberStatus(m.id);
                 return (
@@ -464,12 +445,10 @@ export default function App() {
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
                       <div>
                         <div className="font-bold text-gray-800">{m.name}</div>
-                        {/* Status Badge */}
                         <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {/* Inspect Button (Only if has slots) */}
                       {status.text === 'تم التحديد' && (
                         <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
                       )}
@@ -482,7 +461,6 @@ export default function App() {
            </div>
         )}
 
-        {/* ... (Settings, Analysis, Profile - Same) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
@@ -558,11 +536,11 @@ export default function App() {
               <div className="p-4">
                  <DailyScheduler 
                     userId={inspectMember.id} 
-                    role="member" // Treat as member to see limited view
-                    readOnlyView={true} // New prop to disable editing
+                    role="member"
+                    readOnlyView={true} 
                     readOnlySlots={availability[inspectMember.id]?.slots || []}
                     themeColor={settings.primaryColor}
-                    adminSlots={adminSlots} // To show context
+                    adminSlots={adminSlots} 
                  />
               </div>
            </div>

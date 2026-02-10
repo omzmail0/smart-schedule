@@ -1,7 +1,6 @@
 // src/utils/helpers.js
-
 export const generateId = () => Math.random().toString(36).substr(2, 9);
-export const HOURS = Array.from({ length: 13 }, (_, i) => i + 10); // 10 AM - 10 PM
+export const HOURS = Array.from({ length: 13 }, (_, i) => i + 10); 
 
 export const getStartOfWeek = (date = new Date()) => {
   const d = new Date(date);
