@@ -1,27 +1,7 @@
 // src/utils/helpers.js
-export const db = {
-  get: (key, def) => {
-    try {
-      return JSON.parse(localStorage.getItem(key)) || def;
-    } catch { return def; }
-  },
-  set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
-};
-
-export const initDB = () => {
-  if (!localStorage.getItem('users')) db.set('users', [{ id: 'admin', name: 'المدير', role: 'admin', username: 'admin', password: 'admin' }]);
-  if (!localStorage.getItem('availability')) db.set('availability', {}); 
-  if (!localStorage.getItem('meetings')) db.set('meetings', []);
-  // إعدادات افتراضية للهوية
-  if (!localStorage.getItem('settings')) db.set('settings', { 
-    teamName: 'مجدول الفريق', 
-    primaryColor: '#2563eb', // اللون الأزرق الافتراضي
-    logo: null 
-  });
-};
 
 export const generateId = () => Math.random().toString(36).substr(2, 9);
-export const HOURS = Array.from({ length: 13 }, (_, i) => i + 10); 
+export const HOURS = Array.from({ length: 13 }, (_, i) => i + 10); // 10 AM - 10 PM
 
 export const getStartOfWeek = (date = new Date()) => {
   const d = new Date(date);
