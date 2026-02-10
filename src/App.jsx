@@ -20,6 +20,7 @@ export default function App() {
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
   const [availability, setAvailability] = useState({}); 
+  // القيم الافتراضية
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
@@ -38,12 +39,19 @@ export default function App() {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // 1. التأكد من وجود حساب للأدمن مرة واحدة فقط عند التحميل
+  // 1. جلب الإعدادات فوراً (عشان الشعار يظهر في صفحة الدخول) - تم الإصلاح ✅
+  useEffect(() => {
+    const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
+        if (docSnap.exists()) setSettings(docSnap.data()); 
+    });
+    return () => unsubSettings();
+  }, []);
+
+  // 2. التأكد من وجود حساب للأدمن (مرة واحدة فقط)
   useEffect(() => {
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
         const adminSnap = await getDoc(adminRef);
-        // ننشئ الأدمن فقط إذا لم يكن موجوداً في قاعدة البيانات نهائياً
         if (!adminSnap.exists()) {
             await setDoc(adminRef, {
                 id: "admin",
@@ -59,6 +67,7 @@ export default function App() {
     initAdmin();
   }, []);
 
+  // 3. استرجاع الجلسة
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
@@ -67,11 +76,12 @@ export default function App() {
     }
   }, []);
 
+  // 4. جلب باقي البيانات (فقط عند تسجيل الدخول)
   useEffect(() => {
     if (!user) return;
+    
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
-    const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
@@ -84,10 +94,9 @@ export default function App() {
        setAvailability(data);
     });
 
-    return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
+    return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  // دالة الدخول المصححة (تتحقق فقط ولا تنشئ حسابات)
   const handleLogin = async (loginData) => {
     if (!loginData.username || !loginData.password) return showToast("يرجى إكمال جميع البيانات", "error");
     try {
@@ -115,38 +124,65 @@ export default function App() {
       setAdminSlots([]);
   };
 
-  const openAddModal = () => { setMemberForm({ name: '', username: '', password: '' }); setEditingMemberId(null); setIsModalOpen(true); };
-  const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
+  // --- إدارة الأعضاء ---
+  const openAddModal = () => { 
+      setMemberForm({ name: '', username: '', password: '' }); 
+      setEditingMemberId(null); 
+      setIsModalOpen(true); 
+  };
+
+  const openEditModal = (member) => { 
+      setMemberForm({ name: member.name, username: member.username, password: member.password }); 
+      setEditingMemberId(member.id); 
+      setIsModalOpen(true); 
+  };
+
+  // زر جديد لتعديل البروفايل الحالي
+  const openEditProfile = () => {
+      setMemberForm({ name: user.name, username: user.username, password: user.password });
+      setEditingMemberId(user.id);
+      setIsModalOpen(true);
+  };
 
   const handleSaveMember = async () => {
     if (!memberForm.name || !memberForm.username || !memberForm.password) return showToast("البيانات ناقصة", "error");
     try {
+        // إذا كنا نعدل بيانات الأدمن، نستخدم الـ ID 'admin'، وإلا نستخدم الـ ID الموجود أو ننشئ جديد
         const id = editingMemberId || generateId();
-        const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: 'member', createdAt: serverTimestamp() };
         
-        // تحديث البيانات في قاعدة البيانات
+        // الحفاظ على الدور كما هو (لو بعدل الأدمن يفضل أدمن)
+        const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
+
+        const userData = { 
+            id, 
+            name: memberForm.name, 
+            username: memberForm.username, 
+            password: memberForm.password, 
+            role: role, 
+            createdAt: serverTimestamp() 
+        };
+        
         await setDoc(doc(db, "users", id), userData, { merge: true });
         
-        // إذا كان المستخدم يعدل بياناته الشخصية (الأدمن مثلاً)، نحدث الـ LocalStorage والـ State
+        // تحديث البيانات المحلية لو المستخدم بيعدل حسابه
         if (user && user.id === id) {
-            const updatedUser = { ...user, ...userData };
-            setUser(updatedUser);
-            localStorage.setItem('smartScheduleUser', JSON.stringify(updatedUser));
+            setUser(userData);
+            localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
         }
 
         setIsModalOpen(false);
-        showToast(editingMemberId ? "تم تعديل بيانات العضو" : "تمت إضافة عضو جديد");
+        showToast(editingMemberId ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
     } catch (e) { showToast(e.message, "error"); }
   };
 
   const deleteMember = (memberId) => { 
       triggerConfirm(
           "حذف العضو", 
-          "هل أنت متأكد من حذف هذا العضو نهائياً؟ سيتم حذف جميع بياناته وجداوله.", 
+          "هل أنت متأكد من حذف هذا العضو نهائياً؟", 
           async () => {
             await deleteDoc(doc(db, "users", memberId)); 
             await deleteDoc(doc(db, "availability", memberId));
-            showToast("تم حذف العضو بنجاح");
+            showToast("تم حذف العضو");
           },
           true 
       );
@@ -170,27 +206,27 @@ export default function App() {
   };
 
   const bookMeeting = (slot) => { 
-      triggerConfirm("تأكيد الحجز", "هل تريد اعتماد هذا الموعد كاجتماع رسمي؟", async () => {
+      triggerConfirm("تأكيد الحجز", "هل تريد اعتماد هذا الموعد؟", async () => {
         const id = generateId(); 
         await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); 
         setAnalysisResult(null);
-        showToast("تم حجز الموعد بنجاح");
+        showToast("تم حجز الموعد");
       });
   };
 
   const cancelMeeting = (meetingId) => { 
-      triggerConfirm("إلغاء الاجتماع", "هل أنت متأكد من إلغاء هذا الاجتماع؟", async () => {
+      triggerConfirm("إلغاء الاجتماع", "تأكيد الإلغاء؟", async () => {
         await deleteDoc(doc(db, "meetings", meetingId));
-        showToast("تم إلغاء الاجتماع");
+        showToast("تم الإلغاء");
       }, true);
   };
 
   const resetAllAvailability = () => { 
-      triggerConfirm("تصفير الجداول", "سيتم حذف جميع المواعيد المسجلة للأعضاء. هل أنت متأكد؟", async () => {
+      triggerConfirm("تصفير الجداول", "سيتم مسح كل الجداول. متأكد؟", async () => {
         const snap = await getDocs(collection(db, "availability")); 
         const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id)));
         await Promise.all(deletePromises);
-        showToast("تم تصفير جميع الجداول");
+        showToast("تم تصفير الجداول");
       }, true);
   };
 
@@ -352,6 +388,8 @@ export default function App() {
                      <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto mb-4 flex items-center justify-center text-4xl font-bold text-white relative z-10" style={{ backgroundColor: settings.primaryColor }}>{user.name[0]}</div>
                      <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
                      <p className="text-gray-400 font-medium mb-8">@{user.username}</p>
+                     {/* زر تعديل البيانات */}
+                     <button onClick={openEditProfile} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold mb-6 hover:bg-gray-200">تعديل بياناتي ✏️</button>
                      <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-right"><p className="text-xs text-gray-400 font-bold mb-2">الفريق</p><div className="flex items-center gap-2 font-bold text-gray-700">{settings.logo && <img src={settings.logo} className="w-6 h-6 rounded-md"/>}{settings.teamName}</div></div>
                      <Button onClick={handleLogout} variant="danger" className="w-full">تسجيل الخروج</Button>
                   </div>
@@ -363,7 +401,7 @@ export default function App() {
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
-                <h3 className="text-xl font-bold mb-6 text-center">{editingMemberId ? 'تعديل بيانات العضو' : 'إضافة عضو جديد'}</h3>
+                <h3 className="text-xl font-bold mb-6 text-center">{editingMemberId ? 'تعديل البيانات' : 'إضافة عضو جديد'}</h3>
                 <div className="space-y-4">
                   <input placeholder="الاسم الكامل" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
                   <input placeholder="اسم المستخدم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} />
