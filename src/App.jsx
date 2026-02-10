@@ -36,66 +36,60 @@ const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
 const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], readOnlyView = false, readOnlySlots = [] }) => {
   const [selected, setSelected] = useState([]);
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
-  const [activeDayIndex, setActiveDayIndex] = useState(() => {
-    const today = new Date();
-    const start = getStartOfWeek(today);
-    const days = getWeekDays(start);
-    const idx = days.findIndex(d => d.toDateString() === today.toDateString());
-    return idx !== -1 ? idx : 0;
-  });
-
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [memberDays, setMemberDays] = useState([]); 
   const [isReviewing, setIsReviewing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  
+  // New State: To check if user made changes but didn't save yet
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const days = getWeekDays(weekStart);
   const isScheduleFrozen = bookedSlots.length > 0;
 
+  // Load Initial Data (Only once on mount)
   useEffect(() => {
     if (readOnlyView) {
       setSelected(readOnlySlots);
     } else {
+      // ⚠️ Important: We only load data initially. We don't overwrite user's local edits.
       const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
-        if (doc.exists()) setSelected(doc.data().slots || []); else setSelected([]);
+        if (doc.exists() && !hasUnsavedChanges) { // Only update if no unsaved changes
+           setSelected(doc.data().slots || []);
+        }
       });
       return () => unsub();
     }
-  }, [userId, readOnlyView, readOnlySlots]);
+  }, [userId, readOnlyView]); // Removed hasUnsavedChanges from dep array to avoid loops
+
+  useEffect(() => {
+    // Initial Setup for "Today" index
+    const today = new Date();
+    const todayIdx = days.findIndex(d => d.toDateString() === today.toDateString());
+    setActiveDayIndex(todayIdx !== -1 ? todayIdx : 0);
+  }, [weekStart]);
 
   useEffect(() => {
     if (role !== 'admin' && adminSlots.length > 0) {
       const uniqueDates = [...new Set(adminSlots.map(slot => slot.split('-').slice(0, 3).join('-')))];
-      const futureDates = uniqueDates
-        .map(dStr => new Date(dStr))
-        .filter(d => d >= new Date().setHours(0,0,0,0))
-        .sort((a, b) => a - b);
+      const futureDates = uniqueDates.map(dStr => new Date(dStr)).filter(d => d >= new Date().setHours(0,0,0,0)).sort((a, b) => a - b);
       setMemberDays(futureDates);
       setActiveDayIndex(0); 
     }
   }, [adminSlots, role]);
 
-  const daysToShow = role === 'admin' ? getWeekDays(weekStart) : memberDays;
+  const daysToShow = role === 'admin' ? days : memberDays;
   const activeDate = daysToShow.length > 0 ? daysToShow[activeDayIndex] || daysToShow[0] : new Date();
 
-  useEffect(() => {
-    if (role === 'admin') {
-      const todayStr = new Date().toDateString();
-      const todayIdx = daysToShow.findIndex(d => d.toDateString() === todayStr);
-      if (todayIdx !== -1) setActiveDayIndex(todayIdx);
-      else setActiveDayIndex(0);
-    }
-  }, [weekStart]); 
-
   const goToday = () => {
-    const today = new Date();
-    const start = getStartOfWeek(today);
-    setWeekStart(start);
-    const currentWeekDays = getWeekDays(start);
-    const idx = currentWeekDays.findIndex(d => d.toDateString() === today.toDateString());
-    setActiveDayIndex(idx !== -1 ? idx : 0);
+    setWeekStart(getStartOfWeek(new Date()));
   };
 
   const toggleSlot = (date, hour) => {
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
+    
+    // Validations
     if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
@@ -103,21 +97,11 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     const isOwnerAdmin = role === 'admin';
     if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
     
+    // Toggle Logic
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
+    
     setSelected(newSelected);
-  };
-
-  const saveChanges = async () => {
-    if (isScheduleFrozen) return;
-    try {
-      await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active' }, { merge: true });
-      if (onSave) onSave();
-      if (role === 'admin') alert("✅ تم الحفظ (سحابياً)");
-      else {
-          setIsReviewing(false);
-          setIsSuccess(true);
-      }
-    } catch (e) { alert("خطأ: " + e.message); }
+    setHasUnsavedChanges(true); // Now we know user edited something
   };
 
   const handleInitialSave = () => {
@@ -127,12 +111,26 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         setIsReviewing(true); 
     }
   };
+  
+  const saveChanges = async () => {
+    if (isScheduleFrozen) return;
+    try {
+      await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active' }, { merge: true });
+      setHasUnsavedChanges(false); // Reset unsaved flag
+      if (onSave) onSave();
+      if (role === 'admin') alert("✅ تم الحفظ (سحابياً)");
+      else {
+          setIsReviewing(false);
+          setIsSuccess(true);
+      }
+    } catch (e) { alert("خطأ: " + e.message); }
+  };
 
   const markAsBusy = async () => {
-    if (!window.confirm("هل أنت متأكد أنك غير متاح في أي من المواعيد؟ سيتم إبلاغ المدير بذلك.")) return;
+    if (!window.confirm("هل أنت متأكد أنك غير متاح؟")) return;
     try {
       await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy' }, { merge: true });
-      alert("تم إرسال ردك للمدير بأنك مشغول.");
+      alert("تم الإبلاغ.");
     } catch (e) { alert("خطأ: " + e.message); }
   };
 
@@ -181,6 +179,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
           <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen && !readOnlyView ? 'opacity-80' : ''}`}>
             <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(activeDate)}</h4>
+            
             <div className="grid grid-cols-3 gap-3">
               {HOURS.map(hour => {
                 const slotId = getSlotId(activeDate, hour);
@@ -220,8 +219,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 );
               })}
             </div>
+            
             {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(activeDate, h)))) && role !== 'admin' && (
-               <div className="text-center py-10 text-gray-400 flex flex-col items-center"><Ban size={32} className="mb-2 opacity-20"/><p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p></div>
+               <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+                  <Ban size={32} className="mb-2 opacity-20"/>
+                  <p className="text-xs">لا توجد مواعيد متاحة في هذا اليوم</p>
+               </div>
             )}
           </div>
         </>
@@ -235,13 +238,21 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-4 right-4 z-30 flex gap-3">
-            <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}><UserX size={16}/> غير مناسب لي</Button>
-            <Button onClick={handleInitialSave} disabled={selected.length === 0} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">حفظ التغييرات ({selected.length}) 💾</Button>
+            <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}>
+               <UserX size={16}/> غير مناسب لي
+            </Button>
+            {/* Save button only enabled if there are unsaved changes OR selections made */}
+            <Button onClick={handleInitialSave} disabled={selected.length === 0} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">
+               حفظ التغييرات ({selected.length}) 💾
+            </Button>
          </div>
       )}
       
       {role === 'admin' && !isScheduleFrozen && (
-         <Button variant="float" onClick={handleInitialSave} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>
+         // Admin Save Button: Only shows/enabled if there are changes to save
+         <Button variant="float" onClick={saveChanges} disabled={!hasUnsavedChanges} style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#ccc' }} className="text-white transition-colors">
+            {hasUnsavedChanges ? 'حفظ التغييرات 💾' : 'تم الحفظ ✅'}
+         </Button>
       )}
 
       {isReviewing && (
@@ -291,14 +302,14 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
-  const [availability, setAvailability] = useState({});
+  const [availability, setAvailability] = useState({}); // For admin to see member status
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
-  const [inspectMember, setInspectMember] = useState(null); 
+  const [inspectMember, setInspectMember] = useState(null); // Admin viewing member schedule
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -315,6 +326,7 @@ export default function App() {
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
+    // Listen to ALL availability for dashboard status
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
@@ -351,6 +363,7 @@ export default function App() {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
+      // Use the availability state we already have
       const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
       return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
@@ -362,6 +375,7 @@ export default function App() {
   const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
   const resetAllAvailability = async () => { if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return; const snap = await getDocs(collection(db, "availability")); snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); }); alert("تم التصفير. ابدأوا من جديد."); };
 
+  // Helper to get member status text/color
   const getMemberStatus = (mId) => {
     const userAvail = availability[mId];
     if (!userAvail) return { text: 'لم يدخل', color: 'bg-gray-100 text-gray-400' };
@@ -433,10 +447,12 @@ export default function App() {
           </div>
         )}
 
+        {/* Members Tab with Status and Inspection */}
         {activeTab === 'members' && (
            <div className="animate-in fade-in space-y-4">
               <div className="flex justify-between items-center px-1"><h2 className="font-bold text-lg">الأعضاء</h2><button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1"><UserPlus size={14}/> جديد</button></div>
               
+              {/* Member List */}
               {members.map(m => {
                 const status = getMemberStatus(m.id);
                 return (
@@ -445,10 +461,12 @@ export default function App() {
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
                       <div>
                         <div className="font-bold text-gray-800">{m.name}</div>
+                        {/* Status Badge */}
                         <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {/* Inspect Button (Only if has slots) */}
                       {status.text === 'تم التحديد' && (
                         <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
                       )}
@@ -461,6 +479,7 @@ export default function App() {
            </div>
         )}
 
+        {/* ... (Settings, Analysis, Profile - Same) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
