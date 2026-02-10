@@ -41,7 +41,6 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
   const isScheduleFrozen = bookedSlots.length > 0;
 
   useEffect(() => {
-    // Subscribe to User's Availability
     const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
       if (doc.exists()) setSelected(doc.data().slots || []);
       else setSelected([]);
@@ -55,12 +54,12 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
   }, [weekStart]);
 
   const toggleSlot = (date, hour) => {
-    if (isScheduleFrozen) return alert("⛔ الجدول مغلق لوجود اجتماع مؤكد.");
+    const slotId = getSlotId(date, hour);
+    if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي ولا يمكن تعديله.");
+    if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
     
-    const slotId = getSlotId(date, hour);
     const isOwnerAdmin = role === 'admin';
-    
     if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
     
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
@@ -125,9 +124,9 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
 
             if (isBooked) {
                return (
-                 <div key={hour} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500`}>
-                    <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
-                    <span className="text-[9px]">اجتماع</span>
+                 <div key={hour} onClick={() => toggleSlot(days[activeDayIndex], hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 cursor-not-allowed opacity-90`}>
+                    <div className="flex items-center gap-1"><Lock size={12}/> {formatTime(hour)}</div>
+                    <span className="text-[9px]">تم الحجز</span>
                  </div>
                );
             }
@@ -160,11 +159,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   
-  // Realtime Data State
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
-  const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#2563eb', logo: null });
+  // 👇 تم وضع لونك كقيمة افتراضية هنا
+  const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
@@ -172,13 +171,11 @@ export default function App() {
   const [editingMemberId, setEditingMemberId] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Initial Data Load (Create Admin if not exists)
   useEffect(() => {
     const checkAdmin = async () => {
        const q = query(collection(db, "users"), where("username", "==", "admin"));
        const snap = await getDocs(q);
        if (snap.empty) {
-          // Create default admin
           await setDoc(doc(db, "users", "admin"), {
              id: "admin", name: "المدير", role: "admin", username: "admin", password: "admin"
           });
@@ -187,34 +184,19 @@ export default function App() {
     checkAdmin();
   }, []);
 
-  // Realtime Listeners
   useEffect(() => {
-    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => {
-       setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin'));
-    });
-    const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => {
-       setMeetings(snap.docs.map(d => d.data()));
-    });
-    const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => {
-       if (doc.exists()) setSettings(doc.data());
-    });
-    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => {
-       if (doc.exists()) setAdminSlots(doc.data().slots || []);
-       else setAdminSlots([]);
-    });
-
+    const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
+    const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
+    const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
+    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); };
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    // Simple Client-side query (Not secure for production but fine for this scope)
     const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
     const snap = await getDocs(q);
-    if (!snap.empty) {
-       setUser(snap.docs[0].data());
-       setView('app'); setActiveTab('home');
-    } else alert("بيانات خاطئة");
+    if (!snap.empty) { setUser(snap.docs[0].data()); setView('app'); setActiveTab('home'); } else alert("بيانات خاطئة");
   };
 
   const handleMemberSubmit = async () => {
@@ -229,38 +211,30 @@ export default function App() {
   const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
   const closeModal = () => { setIsModalOpen(false); setEditingMemberId(null); };
 
-  const saveSettings = async () => {
-    await setDoc(doc(db, "settings", "main"), settings);
-    alert("تم التحديث!");
-  };
+  const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
        const reader = new FileReader();
-       reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; // Base64 for simplicity
+       reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); };
        reader.readAsDataURL(file);
     }
   };
 
   const analyzeSchedule = async () => {
     if (adminSlots.length === 0) return alert("حدد أوقاتك أولاً");
-    
-    // Fetch all members availability once
     const availSnap = await getDocs(collection(db, "availability"));
     const allAvail = {};
     availSnap.forEach(d => { allAvail[d.id] = d.data().slots || []; });
-
     const bookedSlotIds = meetings.map(m => m.slot);
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      
       const availableMembers = members.filter(m => (allAvail[m.id] || []).includes(slot));
       return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
-
     suggestions.sort((a, b) => b.count - a.count);
     setAnalysisResult(suggestions);
   };
@@ -279,13 +253,11 @@ export default function App() {
 
   const resetAllAvailability = async () => {
     if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return;
-    // Delete all documents in 'availability' collection
     const snap = await getDocs(collection(db, "availability"));
     snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); });
     alert("تم التصفير. ابدأوا من جديد.");
   };
 
-  // --- Views ---
   if (view === 'login') {
     return (
       <div className="min-h-screen flex flex-col justify-center bg-gray-50 p-6" dir="rtl">
@@ -361,7 +333,15 @@ export default function App() {
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
                 <div><label className="block text-sm font-bold text-gray-500 mb-2">اسم الفريق</label><input className="w-full h-12 px-4 bg-gray-50 rounded-xl font-bold text-gray-700 outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} value={settings.teamName} onChange={e => setSettings({...settings, teamName: e.target.value})} /></div>
-                <div><label className="block text-sm font-bold text-gray-500 mb-2">اللون</label><div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">{['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#000000'].map(c => (<button key={c} onClick={() => setSettings({...settings, primaryColor: c})} className={`w-12 h-12 rounded-full border-4 flex-shrink-0 transition-transform ${settings.primaryColor === c ? 'scale-110 border-gray-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />))}</div></div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-500 mb-2">اللون</label>
+                  <div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">
+                    {/* 👇 تم إضافة لونك هنا في أول القائمة */}
+                    {['#0e395c', '#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#000000'].map(c => (
+                      <button key={c} onClick={() => setSettings({...settings, primaryColor: c})} className={`w-12 h-12 rounded-full border-4 flex-shrink-0 transition-transform ${settings.primaryColor === c ? 'scale-110 border-gray-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                </div>
                 <div><label className="block text-sm font-bold text-gray-500 mb-2">الشعار</label><div className="flex items-center gap-4">{settings.logo && <img src={settings.logo} className="w-16 h-16 rounded-xl object-cover border"/>}<button onClick={() => fileInputRef.current.click()} className="flex-1 h-16 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-400"><Upload size={20}/> <span>تغيير</span></button><input type="file" ref={fileInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" /></div></div>
                 <Button onClick={saveSettings} style={{ backgroundColor: settings.primaryColor }} className="w-full">حفظ الهوية</Button>
                 <hr className="border-gray-100 my-4"/>
@@ -434,6 +414,7 @@ export default function App() {
           </div>
         </div>
       )}
+
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} role={user?.role} color={settings.primaryColor} />
     </div>
   );
