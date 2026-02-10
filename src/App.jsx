@@ -148,7 +148,7 @@ const DailyScheduler = ({ userId, role, adminSlots = null, onSave, themeColor, b
           })}
         </div>
       </div>
-      {!isScheduleFrozen && <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }}>حفظ التغييرات 💾</Button>}
+      {!isScheduleFrozen && <Button variant="float" onClick={saveChanges} style={{ backgroundColor: themeColor }} className="text-white">حفظ التغييرات 💾</Button>}
     </div>
   );
 };

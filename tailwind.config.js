@@ -23,7 +23,7 @@ export default {
       },
       fontFamily: {
         // نضبط الخط العربي كافتراضي
-        sans: ['Tajawal', 'sans-serif'],
+        sans: ['Zain', 'sans-serif'],
       },
     },
   },

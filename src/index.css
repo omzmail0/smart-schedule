@@ -9,7 +9,7 @@
 /* تخصيص اللون والخط */
 @layer base {
   body {
-    font-family: 'Tajawal', sans-serif;
+    font-family: 'Zain', sans-serif;
     direction: rtl;
     background-color: #f8fafc;
     color: #1e293b; /* لون النص الافتراضي رمادي غامق */
