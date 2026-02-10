@@ -49,13 +49,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [isSuccess, setIsSuccess] = useState(false);
   const isScheduleFrozen = bookedSlots.length > 0;
 
-  // Load Data
   useEffect(() => {
     if (readOnlyView) {
-      // If admin is viewing a member's schedule
       setSelected(readOnlySlots);
     } else {
-      // Normal user flow
       const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
         if (doc.exists()) setSelected(doc.data().slots || []); else setSelected([]);
       });
@@ -63,7 +60,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     }
   }, [userId, readOnlyView, readOnlySlots]);
 
-  // Logic for Member Days
   useEffect(() => {
     if (role !== 'admin' && adminSlots.length > 0) {
       const uniqueDates = [...new Set(adminSlots.map(slot => slot.split('-').slice(0, 3).join('-')))];
@@ -98,7 +94,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   };
 
   const toggleSlot = (date, hour) => {
-    if (readOnlyView) return; // Admin viewing member
+    if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
@@ -111,15 +107,25 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     setSelected(newSelected);
   };
 
-  const handleInitialSave = () => setIsReviewing(true);
+  // --- Logic for Saving ---
+  const handleInitialSave = () => {
+    if (role === 'admin') {
+        saveChanges(); // Admin saves directly
+    } else {
+        setIsReviewing(true); // Members review first
+    }
+  };
   
-  const confirmSave = async () => {
+  const saveChanges = async () => {
     if (isScheduleFrozen) return;
     try {
       await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active' }, { merge: true });
       if (onSave) onSave();
-      setIsReviewing(false);
-      setIsSuccess(true);
+      if (role === 'admin') alert("✅ تم الحفظ (سحابياً)");
+      else {
+          setIsReviewing(false);
+          setIsSuccess(true);
+      }
     } catch (e) { alert("خطأ: " + e.message); }
   };
 
