@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock } from 'lucide-react';
 import { db } from './utils/firebase';
-import { collection, doc, setDoc, updateDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
 // استيراد المكونات
@@ -22,7 +22,6 @@ export default function App() {
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
-  // إدارة المودال
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
@@ -30,7 +29,6 @@ export default function App() {
   const [inspectMember, setInspectMember] = useState(null);
   const fileInputRef = useRef(null);
 
-  // 1. استرجاع المستخدم من الذاكرة المحلية عند فتح الموقع (عشان ميعملش خروج لوحده)
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
@@ -39,13 +37,17 @@ export default function App() {
     }
   }, []);
 
-  // 2. جلب البيانات
   useEffect(() => {
     if (!user) return;
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
-    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
+    
+    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
+        if (doc.exists()) setAdminSlots(doc.data().slots || []); 
+        else setAdminSlots([]);
+    });
+
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
@@ -55,98 +57,55 @@ export default function App() {
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  // --- دوال الدخول والخروج البسيطة ---
-  
   const handleLogin = async (loginData) => {
     if (!loginData.username || !loginData.password) return alert("أكمل البيانات");
-    
     try {
-        // البحث عن المستخدم في قاعدة البيانات مباشرة
-        const q = query(collection(db, "users"), 
-            where("username", "==", loginData.username), 
-            where("password", "==", loginData.password)
-        );
+        const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
         const snap = await getDocs(q);
-        
         if (!snap.empty) {
             const userData = snap.docs[0].data();
             setUser(userData);
-            localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); // حفظ الدخول
+            localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             setView('app');
+            setActiveTab('home');
         } else {
-            // حالة خاصة: إنشاء الأدمن الأول تلقائياً لو مش موجود
             if (loginData.username === 'admin') {
                 const adminData = { id: "admin", name: "المدير", role: "admin", username: "admin", password: loginData.password };
                 await setDoc(doc(db, "users", "admin"), adminData);
                 setUser(adminData);
                 localStorage.setItem('smartScheduleUser', JSON.stringify(adminData));
                 setView('app');
+                setActiveTab('home');
             } else {
                 alert("بيانات خاطئة");
             }
         }
-    } catch (error) {
-        alert("حدث خطأ في الاتصال");
-        console.error(error);
-    }
+    } catch (error) { alert("خطأ في الاتصال"); }
   };
 
   const handleLogout = () => {
       localStorage.removeItem('smartScheduleUser');
       setUser(null);
       setView('login');
+      setActiveTab('home');
+      setAdminSlots([]);
   };
 
-  // --- إدارة الأعضاء (إضافة / تعديل) ---
-
-  const openAddModal = () => {
-      setMemberForm({ name: '', username: '', password: '' });
-      setEditingMemberId(null);
-      setIsModalOpen(true);
-  };
-
-  const openEditModal = (member) => {
-      setMemberForm({ 
-          name: member.name, 
-          username: member.username, 
-          password: member.password // هنا نقدر نعرض الباسورد عادي ونعدله
-      });
-      setEditingMemberId(member.id);
-      setIsModalOpen(true);
-  };
+  const openAddModal = () => { setMemberForm({ name: '', username: '', password: '' }); setEditingMemberId(null); setIsModalOpen(true); };
+  const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
 
   const handleSaveMember = async () => {
     if (!memberForm.name || !memberForm.username || !memberForm.password) return alert("البيانات ناقصة");
-    
     try {
         const id = editingMemberId || generateId();
-        const userData = {
-            id,
-            name: memberForm.name,
-            username: memberForm.username,
-            password: memberForm.password, // حفظ كـ نص عادي لسهولة التعديل
-            role: 'member',
-            createdAt: serverTimestamp() // نحتفظ بتاريخ الإنشاء للأرشفة
-        };
-
-        // setDoc مع merge: true تقوم بالإضافة أو التعديل
+        const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: 'member', createdAt: serverTimestamp() };
         await setDoc(doc(db, "users", id), userData, { merge: true });
-        
         setIsModalOpen(false);
-        alert(editingMemberId ? "تم التعديل بنجاح ✅" : "تمت الإضافة بنجاح ✅");
-        
-    } catch (e) {
-        alert("خطأ: " + e.message);
-    }
+        alert(editingMemberId ? "تم التعديل" : "تمت الإضافة");
+    } catch (e) { alert("خطأ: " + e.message); }
   };
 
-  const deleteMember = async (memberId) => {
-      if(!window.confirm("حذف العضو نهائياً؟")) return;
-      await deleteDoc(doc(db, "users", memberId));
-      await deleteDoc(doc(db, "availability", memberId));
-  };
-
-  // --- باقي الوظائف ---
+  const deleteMember = async (memberId) => { if(!window.confirm("حذف؟")) return; await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); };
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
   const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; reader.readAsDataURL(file); } };
 
@@ -164,14 +123,15 @@ export default function App() {
     setAnalysisResult(suggestions);
   };
 
-  const bookMeeting = async (slot) => { 
-      if (!window.confirm("حجز الموعد؟")) return; 
-      const id = generateId(); 
-      await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); 
-      setAnalysisResult(null); 
+  const bookMeeting = async (slot) => { if (!window.confirm("حجز؟")) return; const id = generateId(); await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); setAnalysisResult(null); };
+  const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
+  const resetAllAvailability = async () => { 
+      if (!window.confirm("⚠️ تصفير كامل للجداول؟")) return; 
+      const snap = await getDocs(collection(db, "availability")); 
+      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id)));
+      await Promise.all(deletePromises);
+      alert("تم التصفير بنجاح"); 
   };
-  const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
-  const resetAllAvailability = async () => { if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return; const snap = await getDocs(collection(db, "availability")); snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); }); alert("تم التصفير. ابدأوا من جديد."); };
 
   const getMemberStatus = (mId) => {
     const userAvail = availability[mId];
@@ -181,9 +141,23 @@ export default function App() {
     return { text: 'لم يحدد', color: 'bg-yellow-100 text-yellow-600' };
   };
 
-  if (view === 'login') {
-    return <AuthScreen onLogin={handleLogin} settings={settings} />;
-  }
+  // --- دالة مساعدة لتجهيز عرض مواعيد العضو بشكل منظم ---
+  const getMemberScheduleSummary = (memberId) => {
+    const slots = availability[memberId]?.slots || [];
+    // تجميع الساعات تحت كل تاريخ
+    const grouped = slots.reduce((acc, slot) => {
+        const [y, m, d, h] = slot.split('-');
+        const dateKey = `${y}-${m}-${d}`;
+        if (!acc[dateKey]) acc[dateKey] = [];
+        acc[dateKey].push(parseInt(h));
+        return acc;
+    }, {});
+    
+    // تحويلها لمصفوفة وترتيبها زمنياً
+    return Object.entries(grouped).sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  };
+
+  if (view === 'login') return <AuthScreen onLogin={handleLogin} settings={settings} />;
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -234,13 +208,7 @@ export default function App() {
 
         {activeTab === 'members' && (
            <div className="animate-in fade-in space-y-4">
-              <div className="flex justify-between items-center px-1">
-                <h2 className="font-bold text-lg">الأعضاء</h2>
-                {user.role === 'admin' && (
-                    <button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:opacity-80 transition-all"><UserPlus size={14}/> إضافة عضو</button>
-                )}
-              </div>
-              
+              <div className="flex justify-between items-center px-1"><h2 className="font-bold text-lg">الأعضاء</h2>{user.role === 'admin' && (<button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:opacity-80 transition-all"><UserPlus size={14}/> إضافة عضو</button>)}</div>
               {members.length === 0 ? <p className="text-center text-gray-400 py-10">لا يوجد أعضاء، أضف أول عضو!</p> : members.map(m => {
                 const status = getMemberStatus(m.id);
                 return (
@@ -254,9 +222,7 @@ export default function App() {
                     </div>
                     {user.role === 'admin' && (
                         <div className="flex gap-2">
-                        {status.text === 'تم التحديد' && (
-                            <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
-                        )}
+                        {status.text === 'تم التحديد' && (<button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>)}
                         <button onClick={() => openEditModal(m)} className="w-9 h-9 flex items-center justify-center bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100"><Pencil size={16}/></button>
                         <button onClick={() => deleteMember(m.id)} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
                         </div>
@@ -317,30 +283,14 @@ export default function App() {
 
       </div>
       
-      {/* مودال الإضافة / التعديل */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
             <h3 className="text-xl font-bold mb-6 text-center">{editingMemberId ? 'تعديل بيانات العضو' : 'إضافة عضو جديد'}</h3>
             <div className="space-y-4">
-              <input 
-                placeholder="الاسم الكامل (للعرض)" 
-                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
-                value={memberForm.name} 
-                onChange={e => setMemberForm({...memberForm, name: e.target.value})} 
-              />
-              <input 
-                placeholder="اسم المستخدم (للدخول)" 
-                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
-                value={memberForm.username} 
-                onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} 
-              />
-              <input 
-                placeholder="كلمة المرور" 
-                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
-                value={memberForm.password} 
-                onChange={e => setMemberForm({...memberForm, password: e.target.value})} 
-              />
+              <input placeholder="الاسم الكامل" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
+              <input placeholder="اسم المستخدم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} />
+              <input placeholder="كلمة المرور" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
               <Button onClick={handleSaveMember} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">{editingMemberId ? 'حفظ التعديلات' : 'إنشاء الحساب'}</Button>
             </div>
             <button onClick={() => setIsModalOpen(false)} className="w-full mt-4 text-gray-400 font-bold text-sm">إلغاء</button>
@@ -348,22 +298,56 @@ export default function App() {
         </div>
       )}
 
+      {/* نافذة معاينة العضو (التصميم الجديد المحسن) */}
       {inspectMember && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                 <h3 className="font-bold text-gray-800">جدول: {inspectMember.name}</h3>
-                 <button onClick={() => setInspectMember(null)}><X/></button>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white rounded-3xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
+              
+              {/* الرأس */}
+              <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: settings.primaryColor }}>{inspectMember.name[0]}</div>
+                    <div>
+                        <h3 className="font-bold text-gray-800 leading-tight">{inspectMember.name}</h3>
+                        <p className="text-[10px] text-gray-400">الأوقات المتاحة</p>
+                    </div>
+                 </div>
+                 <button onClick={() => setInspectMember(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100"><X size={18} className="text-gray-500"/></button>
               </div>
-              <div className="p-4">
-                 <DailyScheduler 
-                    userId={inspectMember.id} 
-                    role="member"
-                    readOnlyView={true} 
-                    readOnlySlots={availability[inspectMember.id]?.slots || []}
-                    themeColor={settings.primaryColor}
-                    adminSlots={adminSlots} 
-                 />
+
+              {/* المحتوى (القائمة) */}
+              <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-gray-50/50">
+                 {(() => {
+                    const summary = getMemberScheduleSummary(inspectMember.id);
+                    if (summary.length === 0) {
+                        return (
+                            <div className="text-center py-10 flex flex-col items-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3"><Clock size={32} className="text-gray-300"/></div>
+                                <p className="text-gray-500 font-medium">لم يحدد هذا العضو أي مواعيد</p>
+                            </div>
+                        );
+                    }
+                    return summary.map(([date, hours]) => (
+                       <div key={date} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                          <div className="font-bold text-gray-800 mb-3 flex items-center gap-2 border-b border-gray-50 pb-2">
+                             <Calendar size={16} className="text-gray-400"/>
+                             {formatDate(new Date(date))}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                             {hours.sort((a,b)=>a-b).map(h => (
+                                <span key={h} className="text-xs font-bold px-3 py-1.5 rounded-lg border bg-blue-50 text-blue-600 border-blue-100">
+                                   {formatTime(h)}
+                                </span>
+                             ))}
+                          </div>
+                       </div>
+                    ));
+                 })()}
+              </div>
+              
+              {/* التذييل */}
+              <div className="p-4 border-t border-gray-100 bg-white">
+                 <button onClick={() => setInspectMember(null)} className="w-full h-12 rounded-xl border-2 border-gray-100 font-bold text-gray-500 hover:bg-gray-50">إغلاق</button>
               </div>
            </div>
         </div>

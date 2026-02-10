@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX } from 'lucide-react';
+import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../utils/firebase';
 import { getStartOfWeek, getWeekDays, getSlotId, isPastTime, formatDate, formatTime, HOURS } from '../utils/helpers';
@@ -24,6 +24,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       const unsub = onSnapshot(doc(db, "availability", userId), (docSnapshot) => {
         if (docSnapshot.exists() && !hasUnsavedChanges) { 
            setSelected(docSnapshot.data().slots || []);
+        } else if (!docSnapshot.exists() && !hasUnsavedChanges) {
+           setSelected([]); 
         }
       });
       return () => unsub();
@@ -54,6 +56,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     
+    // التحققات
     if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
@@ -61,9 +64,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     const isOwnerAdmin = role === 'admin';
     if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
     
+    // تنفيذ التغيير
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
     setSelected(newSelected);
     setHasUnsavedChanges(true);
+
+    // إضافة تأثير اهتزاز بسيط للهاتف عند الاختيار (لتحسين التجربة)
+    if (navigator.vibrate) navigator.vibrate(30);
   };
 
   const handleInitialSave = () => {
@@ -85,16 +92,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     } catch (e) { alert("خطأ: " + e.message); }
   };
 
-  const markAsBusy = async () => {
-    if (!window.confirm("هل أنت متأكد أنك غير متاح؟")) return;
-    try {
-      await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
-      setSelected([]); 
-      setHasUnsavedChanges(false);
-      alert("تم الإبلاغ.");
-    } catch (e) { alert("خطأ: " + e.message); }
-  };
-
   const groupedSelections = selected.reduce((acc, slot) => {
     const [y, m, d, h] = slot.split('-');
     const dateKey = `${y}-${m}-${d}`;
@@ -104,24 +101,28 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   }, {});
 
   return (
-    <div className="pb-24">
+    <div className="pb-32"> {/* زيادة المسافة السفلية عشان الشريط الجديد */}
+      
+      {/* رسالة الجدول المغلق */}
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
 
+      {/* شريط التحكم بالتاريخ (للأدمن) */}
       {role === 'admin' && (
         <div className="flex justify-between items-center mb-6 px-2">
           <div className="flex items-center gap-2">
              <span className="font-bold text-gray-800 text-lg">{formatDate(weekStart).split(',')[1]}</span>
-             <button onClick={goToday} className="bg-gray-100 text-xs px-2 py-1 rounded-md text-gray-600 font-bold flex items-center gap-1">اليوم <RefreshCw size={10}/></button>
+             <button onClick={goToday} className="bg-gray-100 text-xs px-3 py-1.5 rounded-lg text-gray-600 font-bold flex items-center gap-1 hover:bg-gray-200 transition-colors">اليوم <RefreshCw size={12}/></button>
           </div>
-          <div className="flex gap-1">
-             <button onClick={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()-7); return n; })} className="p-2 bg-white border rounded-full shadow-sm"><ChevronRight size={20}/></button>
-             <button onClick={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()+7); return n; })} className="p-2 bg-white border rounded-full shadow-sm"><ChevronLeft size={20}/></button>
+          <div className="flex gap-2">
+             <button onClick={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()-7); return n; })} className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50"><ChevronRight size={20}/></button>
+             <button onClick={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()+7); return n; })} className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50"><ChevronLeft size={20}/></button>
           </div>
         </div>
       )}
 
       {daysToShow.length > 0 ? (
         <>
+          {/* شريط الأيام الأفقي */}
           <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
             {daysToShow.map((d, i) => {
               const dateKey = d.toISOString().split('T')[0];
@@ -129,8 +130,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
               const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
               return (
                 <button key={dateKey} onClick={() => setActiveDayIndex(i)}
-                  style={{ borderColor: isSelected ? themeColor : 'transparent', backgroundColor: isSelected ? `${themeColor}10` : 'white', color: isSelected ? themeColor : '#9ca3af' }}
-                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all shadow-sm`}>
+                  style={{ 
+                      borderColor: isSelected ? themeColor : 'transparent', 
+                      backgroundColor: isSelected ? `${themeColor}10` : 'white', 
+                      color: isSelected ? themeColor : '#9ca3af' 
+                  }}
+                  className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm ${isSelected ? 'scale-105 shadow-md' : 'scale-100'}`}>
                   <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
                   <span className="text-xl font-bold">{d.getDate()}</span>
                   {hasData && <div style={{ backgroundColor: themeColor }} className="w-1.5 h-1.5 rounded-full mt-1"></div>}
@@ -139,8 +144,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             })}
           </div>
 
-          <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen && !readOnlyView ? 'opacity-80' : ''}`}>
-            <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(activeDate)}</h4>
+          {/* حاوية الساعات */}
+          <div className={`bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 min-h-[350px] transition-opacity ${isScheduleFrozen && !readOnlyView ? 'opacity-80' : ''}`}>
+            <h4 className="text-center font-bold text-gray-400 mb-6 text-sm flex items-center justify-center gap-2">
+                <CalendarDays size={16}/>
+                {formatDate(activeDate)}
+            </h4>
             
             <div className="grid grid-cols-3 gap-3">
               {HOURS.map(hour => {
@@ -153,31 +162,56 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 
                 if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
 
-                let slotStyle = {};
-                let slotClass = "bg-gray-50 border-gray-100 text-gray-400";
-                
+                // تصميم الزر (الساعة)
                 if (isBooked) {
                   return (
-                    <div key={hour} onClick={() => !readOnlyView && toggleSlot(activeDate, hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90 cursor-not-allowed`}>
+                    <div key={hour} className="h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90 cursor-not-allowed">
                         <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
                         <span className="text-[9px]">تم الحجز</span>
                     </div>
                   );
                 }
 
-                if (isPast) slotClass = "bg-gray-50 opacity-30 cursor-not-allowed text-gray-300";
-                else if (!isAllowed) slotClass = "bg-gray-50 opacity-40 cursor-not-allowed border-dashed border-gray-200";
-                else if (isSelected) {
-                  slotStyle = { backgroundColor: themeColor, color: 'white', boxShadow: `0 4px 12px ${themeColor}60` };
-                  slotClass = "transform scale-105 font-bold border-transparent";
-                } else slotClass = "bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:bg-blue-50";
+                if (isPast) {
+                    return (
+                        <div key={hour} className="h-14 rounded-2xl flex flex-col items-center justify-center bg-gray-50 text-gray-300 cursor-not-allowed opacity-50">
+                            <span className="text-xs font-bold line-through">{formatTime(hour)}</span>
+                        </div>
+                    );
+                }
                 
-                if (isScheduleFrozen && !isBooked && !readOnlyView) slotClass += " cursor-not-allowed opacity-60";
+                if (!isAllowed) {
+                    return (
+                        <div key={hour} className="h-14 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center opacity-40 cursor-not-allowed">
+                            <span className="text-xs text-gray-300">غير متاح</span>
+                        </div>
+                    );
+                }
 
+                // الحالة العادية (متاح للاختيار)
                 return (
-                  <button key={hour} disabled={(isPast || (!isAllowed && !isOwnerAdmin) || isScheduleFrozen) && !readOnlyView} onClick={() => toggleSlot(activeDate, hour)}
-                    style={slotStyle} className={`h-14 rounded-2xl text-sm transition-all flex flex-col items-center justify-center border ${slotClass}`}>
-                    {formatTime(hour)}
+                  <button 
+                    key={hour} 
+                    disabled={(isPast || (!isAllowed && !isOwnerAdmin) || isScheduleFrozen) && !readOnlyView} 
+                    onClick={() => toggleSlot(activeDate, hour)}
+                    style={isSelected ? { 
+                        backgroundColor: themeColor, 
+                        color: 'white', 
+                        boxShadow: `0 8px 16px -4px ${themeColor}60`,
+                        transform: 'scale(1.05)'
+                    } : {}} 
+                    className={`h-14 rounded-2xl text-sm transition-all duration-200 flex flex-col items-center justify-center border relative overflow-hidden group
+                        ${isSelected ? 'font-bold border-transparent' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-200 hover:bg-blue-50'}
+                        ${isScheduleFrozen && !readOnlyView ? 'cursor-not-allowed opacity-60' : ''}
+                    `}
+                  >
+                    {/* أيقونة تظهر فقط عند التحديد */}
+                    {isSelected && <div className="absolute top-1 right-1 opacity-50"><Check size={10} strokeWidth={4}/></div>}
+                    
+                    <span className="flex items-center gap-1">
+                        {!isSelected && <Clock size={12} className="opacity-30"/>}
+                        {formatTime(hour)}
+                    </span>
                   </button>
                 );
               })}
@@ -199,55 +233,102 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       )}
 
+      {/* شريط الإجراءات السفلي (Action Bar) - تم تحسينه */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
-         <div className="fixed bottom-24 left-4 right-4 z-30 flex gap-3">
-            <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}>
-               <UserX size={16}/> غير مناسب لي
-            </Button>
-            <Button onClick={handleInitialSave} disabled={selected.length === 0 && !hasUnsavedChanges} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">
-               {hasUnsavedChanges ? `حفظ التغييرات (${selected.length})` : `مراجعة (${selected.length})`} 💾
-            </Button>
+         <div className="fixed bottom-24 left-4 right-4 z-30">
+            <div className="bg-white/90 backdrop-blur-md p-2 rounded-[1.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/50 flex items-center gap-3">
+                {/* زر غير مناسب لي */}
+                <button 
+                    onClick={() => { if(window.confirm("هل أنت متأكد أنك غير متاح؟")){setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true }); setSelected([]); setHasUnsavedChanges(false); alert("تم التبليغ."); } }} 
+                    className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+                    title="غير متاح طوال الأيام"
+                >
+                    <UserX size={20}/>
+                </button>
+
+                {/* زر الحفظ الرئيسي */}
+                <button 
+                    onClick={handleInitialSave} 
+                    disabled={selected.length === 0 && !hasUnsavedChanges} 
+                    style={{ backgroundColor: themeColor }}
+                    className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-white font-bold shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
+                >
+                    {hasUnsavedChanges ? (
+                        <><span>حفظ التغييرات</span> <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs">{selected.length}</span></>
+                    ) : (
+                        <><span>مراجعة واعتماد</span> <CheckCircle2 size={18}/></>
+                    )}
+                </button>
+            </div>
          </div>
       )}
       
+      {/* زر الحفظ العائم للأدمن */}
       {role === 'admin' && !isScheduleFrozen && (
-         <Button variant="float" onClick={saveChanges} disabled={!hasUnsavedChanges} style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#ccc' }} className="text-white transition-colors">
-            {hasUnsavedChanges ? 'حفظ التغييرات 💾' : 'تم الحفظ ✅'}
-         </Button>
+         <div className="fixed bottom-24 left-6 right-6 z-30">
+             <Button 
+                onClick={saveChanges} 
+                disabled={!hasUnsavedChanges} 
+                style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#374151' }} 
+                className="w-full h-14 text-lg shadow-xl"
+             >
+                {hasUnsavedChanges ? '💾 حفظ التعديلات' : '✅ البيانات محفوظة'}
+             </Button>
+         </div>
       )}
 
+      {/* نافذة المراجعة (Review Modal) */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-lg rounded-t-[30px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
-             <div className="text-center mb-6">
-                <div className="w-16 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                <h3 className="text-xl font-bold text-gray-800">مراجعة اختياراتك</h3>
-                <p className="text-gray-400 text-sm">تأكد من تحديد كل الأوقات المناسبة لك</p>
+          <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
+             <div className="text-center mb-8 mt-2">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <Send size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-gray-800 mb-1">تأكيد المواعيد</h3>
+                <p className="text-gray-400 text-sm">لقد قمت باختيار <strong className="text-gray-800">{selected.length}</strong> ساعة متاحة.</p>
              </div>
-             <div className="space-y-4 mb-6">
-                {Object.keys(groupedSelections).length === 0 ? <p className="text-center text-red-500 bg-red-50 p-4 rounded-xl">لم تقم باختيار أي موعد!</p> : 
+             
+             <div className="space-y-3 mb-8">
+                {Object.keys(groupedSelections).length === 0 ? <p className="text-center text-red-500 bg-red-50 p-4 rounded-xl font-bold">لم تقم باختيار أي موعد!</p> : 
                    Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
-                      <div key={dateStr} className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
-                         <div className="font-bold text-gray-700 mb-2 flex items-center gap-2"><div className="text-sm">📅</div> {formatDate(new Date(dateStr))}</div>
-                         <div className="flex flex-wrap gap-2">{hours.sort((a,b)=>a-b).map(h => (<span key={h} className="text-xs bg-white border border-gray-200 px-3 py-1 rounded-lg font-bold text-gray-600">{formatTime(h)}</span>))}</div>
+                      <div key={dateStr} className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 flex flex-col gap-3">
+                         <div className="font-bold text-gray-700 flex items-center gap-2 text-sm">
+                            <CalendarDays size={16} className="text-blue-500"/> 
+                            {formatDate(new Date(dateStr))}
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                            {hours.sort((a,b)=>a-b).map(h => (
+                                <span key={h} className="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-bold text-gray-600 shadow-sm flex items-center gap-1">
+                                    {formatTime(h)}
+                                </span>
+                            ))}
+                         </div>
                       </div>
                    ))
                 }
              </div>
+             
              <div className="flex gap-3">
-                <Button onClick={saveChanges} style={{ backgroundColor: themeColor }} className="flex-1 text-white">تأكيد وإرسال <Send size={16}/></Button>
-                <Button onClick={() => setIsReviewing(false)} variant="outline" className="flex-1">رجوع</Button>
+                <Button onClick={saveChanges} style={{ backgroundColor: themeColor }} className="flex-[2] text-white h-14 text-lg shadow-xl">إرسال للمدير 🚀</Button>
+                <button onClick={() => setIsReviewing(false)} className="flex-1 h-14 rounded-xl border-2 border-gray-100 font-bold text-gray-500 hover:bg-gray-50">تعديل</button>
              </div>
           </div>
         </div>
       )}
 
+      {/* شاشة النجاح */}
       {isSuccess && (
-         <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce"><div className="text-4xl text-green-600">✅</div></div>
-            <h2 className="text-2xl font-black text-gray-800 mb-2 text-center">تم التسجيل بنجاح! 🎉</h2>
-            <p className="text-center text-gray-500 mb-8 max-w-xs leading-relaxed">شكراً لك. تم حفظ الأوقات التي تناسبك.<br/>بانتظار باقي الزملاء ليعتمد المدير الموعد النهائي.</p>
-            <div className="w-full max-w-sm space-y-3"><Button onClick={() => setIsSuccess(false)} variant="outline" className="w-full">تعديل المواعيد مرة أخرى</Button></div>
+         <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300 text-center">
+            <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                <CheckCircle2 size={64} className="text-green-500"/>
+            </div>
+            <h2 className="text-3xl font-black text-gray-800 mb-3">تم الإرسال بنجاح!</h2>
+            <p className="text-gray-500 mb-10 max-w-xs leading-relaxed mx-auto">شكراً لك. تم تسجيل الأوقات التي تناسبك.<br/>سيقوم المدير بمراجعة الردود وتحديد الموعد النهائي.</p>
+            <div className="w-full max-w-sm space-y-3">
+                <Button onClick={() => setIsSuccess(false)} variant="outline" className="w-full h-14 border-2">تعديل المواعيد مرة أخرى</Button>
+            </div>
          </div>
       )}
     </div>
