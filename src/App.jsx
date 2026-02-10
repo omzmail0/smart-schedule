@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil } from 'lucide-react';
-import { db, firebaseConfig } from './utils/firebase'; // استوردنا firebaseConfig
-import { initializeApp } from "firebase/app"; // نحتاج هذا لإنشاء تطبيق ثانوي
-import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { db } from './utils/firebase';
+import { collection, doc, setDoc, updateDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
 
+// استيراد المكونات
 import Button from './components/Button';
 import BottomNav from './components/BottomNav';
 import DailyScheduler from './components/DailyScheduler';
 import AuthScreen from './components/AuthScreen';
-
-const auth = getAuth();
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -25,26 +22,24 @@ export default function App() {
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
-  // لإدارة إضافة الأعضاء (مودال)
+  // إدارة المودال
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   
   const [inspectMember, setInspectMember] = useState(null);
   const fileInputRef = useRef(null);
 
+  // 1. استرجاع المستخدم من الذاكرة المحلية عند فتح الموقع (عشان ميعملش خروج لوحده)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        if (currentUser) {
-            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-            if (userDoc.exists()) {
-                setUser({ ...userDoc.data(), id: currentUser.uid });
-                setView('app');
-            }
-        }
-    });
-    return () => unsubscribe();
+    const savedUser = localStorage.getItem('smartScheduleUser');
+    if (savedUser) {
+        setUser(JSON.parse(savedUser));
+        setView('app');
+    }
   }, []);
 
+  // 2. جلب البيانات
   useEffect(() => {
     if (!user) return;
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
@@ -60,71 +55,98 @@ export default function App() {
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  // تسجيل الدخول فقط
+  // --- دوال الدخول والخروج البسيطة ---
+  
   const handleLogin = async (loginData) => {
     if (!loginData.username || !loginData.password) return alert("أكمل البيانات");
-    const email = `${loginData.username}@team.com`;
-    try {
-        await signInWithEmailAndPassword(auth, email, loginData.password);
-    } catch (error) {
-        alert("بيانات الدخول غير صحيحة");
-    }
-  };
-
-  const handleLogout = async () => {
-      await signOut(auth);
-      setUser(null);
-      setView('login');
-  };
-
-  // --- منطق إضافة عضو جديد (للأدمن فقط) ---
-  const handleAddMember = async () => {
-    if (!memberForm.name || !memberForm.username || !memberForm.password) return alert("أكمل البيانات");
     
     try {
-        // حيلة ذكية: ننشئ تطبيق Firebase ثانوي عشان ننشئ يوزر جديد من غير ما نخرج الأدمن الحالي
-        const secondaryApp = initializeApp(firebaseConfig, "Secondary");
-        const secondaryAuth = getAuth(secondaryApp);
+        // البحث عن المستخدم في قاعدة البيانات مباشرة
+        const q = query(collection(db, "users"), 
+            where("username", "==", loginData.username), 
+            where("password", "==", loginData.password)
+        );
+        const snap = await getDocs(q);
         
-        const email = `${memberForm.username}@team.com`;
-        
-        // إنشاء المستخدم في Auth
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, memberForm.password);
-        const uid = userCredential.user.uid;
-        
-        // حفظ بياناته في Firestore
-        await setDoc(doc(db, "users", uid), {
-            id: uid,
-            name: memberForm.name,
-            username: memberForm.username,
-            role: 'member',
-            createdAt: serverTimestamp()
-        });
-
-        // تسجيل الخروج من التطبيق الثانوي وحذفه
-        await signOut(secondaryAuth);
-        
-        setIsModalOpen(false);
-        setMemberForm({ name: '', username: '', password: '' });
-        alert("تمت إضافة العضو بنجاح ✅");
-        
+        if (!snap.empty) {
+            const userData = snap.docs[0].data();
+            setUser(userData);
+            localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); // حفظ الدخول
+            setView('app');
+        } else {
+            // حالة خاصة: إنشاء الأدمن الأول تلقائياً لو مش موجود
+            if (loginData.username === 'admin') {
+                const adminData = { id: "admin", name: "المدير", role: "admin", username: "admin", password: loginData.password };
+                await setDoc(doc(db, "users", "admin"), adminData);
+                setUser(adminData);
+                localStorage.setItem('smartScheduleUser', JSON.stringify(adminData));
+                setView('app');
+            } else {
+                alert("بيانات خاطئة");
+            }
+        }
     } catch (error) {
-        let msg = "حدث خطأ";
-        if (error.code === 'auth/email-already-in-use') msg = "اسم المستخدم موجود مسبقاً";
-        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة (6 أحرف على الأقل)";
-        alert(msg);
+        alert("حدث خطأ في الاتصال");
         console.error(error);
     }
   };
 
+  const handleLogout = () => {
+      localStorage.removeItem('smartScheduleUser');
+      setUser(null);
+      setView('login');
+  };
+
+  // --- إدارة الأعضاء (إضافة / تعديل) ---
+
+  const openAddModal = () => {
+      setMemberForm({ name: '', username: '', password: '' });
+      setEditingMemberId(null);
+      setIsModalOpen(true);
+  };
+
+  const openEditModal = (member) => {
+      setMemberForm({ 
+          name: member.name, 
+          username: member.username, 
+          password: member.password // هنا نقدر نعرض الباسورد عادي ونعدله
+      });
+      setEditingMemberId(member.id);
+      setIsModalOpen(true);
+  };
+
+  const handleSaveMember = async () => {
+    if (!memberForm.name || !memberForm.username || !memberForm.password) return alert("البيانات ناقصة");
+    
+    try {
+        const id = editingMemberId || generateId();
+        const userData = {
+            id,
+            name: memberForm.name,
+            username: memberForm.username,
+            password: memberForm.password, // حفظ كـ نص عادي لسهولة التعديل
+            role: 'member',
+            createdAt: serverTimestamp() // نحتفظ بتاريخ الإنشاء للأرشفة
+        };
+
+        // setDoc مع merge: true تقوم بالإضافة أو التعديل
+        await setDoc(doc(db, "users", id), userData, { merge: true });
+        
+        setIsModalOpen(false);
+        alert(editingMemberId ? "تم التعديل بنجاح ✅" : "تمت الإضافة بنجاح ✅");
+        
+    } catch (e) {
+        alert("خطأ: " + e.message);
+    }
+  };
+
   const deleteMember = async (memberId) => {
-      if(!window.confirm("حذف العضو نهائياً؟ (لا يمكن التراجع)")) return;
-      // ملاحظة: حذف المستخدم من Auth يتطلب Cloud Functions، هنا سنحذفه من البيانات فقط ولن يتمكن من الدخول
-      // لأننا نتحقق من وجوده في Firestore عند الدخول
+      if(!window.confirm("حذف العضو نهائياً؟")) return;
       await deleteDoc(doc(db, "users", memberId));
       await deleteDoc(doc(db, "availability", memberId));
   };
 
+  // --- باقي الوظائف ---
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
   const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; reader.readAsDataURL(file); } };
 
@@ -215,7 +237,7 @@ export default function App() {
               <div className="flex justify-between items-center px-1">
                 <h2 className="font-bold text-lg">الأعضاء</h2>
                 {user.role === 'admin' && (
-                    <button onClick={() => setIsModalOpen(true)} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:opacity-80 transition-all"><UserPlus size={14}/> إضافة عضو</button>
+                    <button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 hover:opacity-80 transition-all"><UserPlus size={14}/> إضافة عضو</button>
                 )}
               </div>
               
@@ -235,6 +257,7 @@ export default function App() {
                         {status.text === 'تم التحديد' && (
                             <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
                         )}
+                        <button onClick={() => openEditModal(m)} className="w-9 h-9 flex items-center justify-center bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100"><Pencil size={16}/></button>
                         <button onClick={() => deleteMember(m.id)} className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
                         </div>
                     )}
@@ -294,16 +317,31 @@ export default function App() {
 
       </div>
       
-      {/* مودال إضافة عضو جديد */}
+      {/* مودال الإضافة / التعديل */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <h3 className="text-xl font-bold mb-6 text-center">إضافة عضو جديد</h3>
+            <h3 className="text-xl font-bold mb-6 text-center">{editingMemberId ? 'تعديل بيانات العضو' : 'إضافة عضو جديد'}</h3>
             <div className="space-y-4">
-              <input placeholder="الاسم الكامل (للعرض)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
-              <input placeholder="اسم المستخدم (إنجليزي للدخول)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} />
-              <input placeholder="كلمة المرور (6 أحرف ع الأقل)" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
-              <Button onClick={handleAddMember} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">إنشاء الحساب</Button>
+              <input 
+                placeholder="الاسم الكامل (للعرض)" 
+                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
+                value={memberForm.name} 
+                onChange={e => setMemberForm({...memberForm, name: e.target.value})} 
+              />
+              <input 
+                placeholder="اسم المستخدم (للدخول)" 
+                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
+                value={memberForm.username} 
+                onChange={e => setMemberForm({...memberForm, username: e.target.value.replace(/\s/g, '')})} 
+              />
+              <input 
+                placeholder="كلمة المرور" 
+                className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" 
+                value={memberForm.password} 
+                onChange={e => setMemberForm({...memberForm, password: e.target.value})} 
+              />
+              <Button onClick={handleSaveMember} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">{editingMemberId ? 'حفظ التعديلات' : 'إنشاء الحساب'}</Button>
             </div>
             <button onClick={() => setIsModalOpen(false)} className="w-full mt-4 text-gray-400 font-bold text-sm">إلغاء</button>
           </div>
