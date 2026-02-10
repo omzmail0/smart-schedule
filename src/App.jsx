@@ -35,9 +35,18 @@ const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
 
 const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [] }) => {
   const [selected, setSelected] = useState([]);
-  const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); // Only for Admin
-  const [activeDayIndex, setActiveDayIndex] = useState(0);
-  const [memberDays, setMemberDays] = useState([]); // List of ALL available days for members
+  const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
+  
+  // FIX 1: Initial state correctly calculates "Today" index
+  const [activeDayIndex, setActiveDayIndex] = useState(() => {
+    const today = new Date();
+    const start = getStartOfWeek(today);
+    const days = getWeekDays(start);
+    const idx = days.findIndex(d => d.toDateString() === today.toDateString());
+    return idx !== -1 ? idx : 0;
+  });
+
+  const [memberDays, setMemberDays] = useState([]); 
   const isScheduleFrozen = bookedSlots.length > 0;
 
   useEffect(() => {
@@ -47,28 +56,43 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     return () => unsub();
   }, [userId]);
 
-  // --- Logic for Member Days (Get ALL days with allowed slots) ---
+  // Logic for Member Days (Get ALL days with allowed slots)
   useEffect(() => {
     if (role !== 'admin' && adminSlots.length > 0) {
-      // Extract unique dates from adminSlots
       const uniqueDates = [...new Set(adminSlots.map(slot => slot.split('-').slice(0, 3).join('-')))];
-      
-      // Filter out past dates & Convert to Date objects
       const futureDates = uniqueDates
         .map(dStr => new Date(dStr))
         .filter(d => d >= new Date().setHours(0,0,0,0))
         .sort((a, b) => a - b);
-
       setMemberDays(futureDates);
-      setActiveDayIndex(0); // Reset to first available day
+      setActiveDayIndex(0); 
     }
   }, [adminSlots, role]);
 
-  // Determine which list of days to show
   const daysToShow = role === 'admin' ? getWeekDays(weekStart) : memberDays;
-
-  // Safe check for active day
   const activeDate = daysToShow.length > 0 ? daysToShow[activeDayIndex] || daysToShow[0] : new Date();
+
+  // FIX 2: Logic for week switching via arrows (Syncs index if possible)
+  useEffect(() => {
+    if (role === 'admin') {
+      const todayStr = new Date().toDateString();
+      const todayIdx = daysToShow.findIndex(d => d.toDateString() === todayStr);
+      if (todayIdx !== -1) setActiveDayIndex(todayIdx);
+      else setActiveDayIndex(0);
+    }
+  }, [weekStart]); 
+
+  // FIX 3: "Go Today" now explicitly sets the index
+  const goToday = () => {
+    const today = new Date();
+    const start = getStartOfWeek(today);
+    setWeekStart(start);
+    
+    // Force find today index in the fresh week list
+    const currentWeekDays = getWeekDays(start);
+    const idx = currentWeekDays.findIndex(d => d.toDateString() === today.toDateString());
+    setActiveDayIndex(idx !== -1 ? idx : 0);
+  };
 
   const toggleSlot = (date, hour) => {
     const slotId = getSlotId(date, hour);
@@ -92,13 +116,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     } catch (e) { alert("خطأ في الحفظ: " + e.message); }
   };
 
-  const goToday = () => { setWeekStart(getStartOfWeek(new Date())); };
-
   return (
     <div className="pb-24">
       {isScheduleFrozen && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
 
-      {/* --- Admin Only: Week Navigation --- */}
       {role === 'admin' && (
         <div className="flex justify-between items-center mb-6 px-2">
           <div className="flex items-center gap-2">
@@ -114,7 +135,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {daysToShow.length > 0 ? (
         <>
-          {/* Days List */}
           <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar px-1 snap-x">
             {daysToShow.map((d, i) => {
               const isSelected = activeDayIndex === i;
@@ -131,7 +151,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             })}
           </div>
 
-          {/* Slots Grid */}
           <div className={`bg-white rounded-3xl p-5 shadow-[0_5px_20px_rgba(0,0,0,0.03)] border border-gray-50 min-h-[350px] transition-opacity ${isScheduleFrozen ? 'opacity-80' : ''}`}>
             <h4 className="text-center font-bold text-gray-400 mb-6 text-sm">{formatDate(activeDate)}</h4>
             
@@ -144,7 +163,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 const isPast = isPastTime(activeDate, hour);
                 const isBooked = bookedSlots.some(m => m.slot === slotId);
                 
-                // Hide unavailable slots for members
                 if (!isOwnerAdmin && !isAllowed && !isBooked) return null;
 
                 let slotStyle = {};
@@ -176,7 +194,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
               })}
             </div>
             
-            {/* Empty State for Slots inside Day */}
             {!HOURS.some(h => role === 'admin' || (adminSlots && adminSlots.includes(getSlotId(activeDate, h)))) && role !== 'admin' && (
                <div className="text-center py-10 text-gray-400 flex flex-col items-center">
                   <Ban size={32} className="mb-2 opacity-20"/>
@@ -186,7 +203,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
           </div>
         </>
       ) : (
-        // --- Empty State for NO DAYS AVAILABLE ---
         <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xl border border-gray-100 shadow-sm mt-4">
            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4"><Calendar size={40} className="text-gray-300"/></div>
            <p className="font-bold text-gray-600">لا توجد أيام متاحة حالياً</p>
@@ -340,7 +356,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ... (Settings, Members, Analysis, Profile - Same as before) ... */}
+        {/* ... (Settings, Members, Analysis, Profile) ... */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
