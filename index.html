@@ -1,12 +1,40 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>smart-schedule</title>
+    
+    <!-- 1. الأيقونة (Favicon) -->
+    <!-- تم تعديل النوع ليكون png -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    
+    <!-- 2. عنوان الموقع -->
+    <title>منظم مواعيد الفريق</title>
+    <meta name="description" content="تطبيق ذكي لتنظيم اجتماعات الفريق بسهولة واحترافية. حدد مواعيدك وتجنب التضارب." />
+
+    <!-- 3. إعدادات فيسبوك و واتساب (Open Graph) -->
+    <meta property="og:type" content="website" />
+    <!-- تأكد إن الرابط ده هو رابط موقعك الحقيقي على Vercel -->
+    <meta property="og:url" content="https://smart-schedule.vercel.app/" />
+    <meta property="og:title" content="منظم مواعيد الفريق 📅" />
+    <meta property="og:description" content="شارك جدولك بسهولة، واعرف أنسب وقت للاجتماع بضغطة زر!" />
+    
+    <!-- هام: فيسبوك وواتساب بيحتاجوا رابط كامل للصورة عشان تظهر -->
+    <meta property="og:image" content="https://smart-schedule.vercel.app/og-image.png" />
+
+    <!-- 4. إعدادات تويتر -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://smart-schedule.vercel.app/" />
+    <meta name="twitter:title" content="منظم مواعيد الفريق 📅" />
+    <meta name="twitter:description" content="شارك جدولك بسهولة، واعرف أنسب وقت للاجتماع بضغطة زر!" />
+    <meta name="twitter:image" content="https://smart-schedule.vercel.app/og-image.png" />
+
+    <!-- الخطوط -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   </head>
-  <body>
+  <body class="font-sans antialiased bg-gray-50">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

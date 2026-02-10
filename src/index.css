@@ -1,9 +1,25 @@
+/* استيراد الخط */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+/* مكتبة Tailwind الأساسية */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  direction: rtl;
-  background-color: #f8fafc;
-  font-family: system-ui, -apple-system, sans-serif;
+/* تخصيص اللون والخط */
+@layer base {
+  body {
+    font-family: 'Tajawal', sans-serif;
+    direction: rtl;
+    background-color: #f8fafc;
+    color: #1e293b; /* لون النص الافتراضي رمادي غامق */
+  }
+
+  /* هنا بنغير أي حاجة زرقاء للون بتاعك */
+  .bg-blue-600 { background-color: #0e395c !important; }
+  .text-blue-600 { color: #0e395c !important; }
+  .border-blue-600 { border-color: #0e395c !important; }
+  .bg-blue-50 { background-color: #f0f4f8 !important; } /* لون فاتح جداً متناسق معاه */
+  .text-blue-700 { color: #0e395c !important; }
+  .text-blue-800 { color: #0b2d49 !important; } /* أغمق شوية للعناوين */
 }
