@@ -1,27 +1,32 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock, Info, CheckCircle2, Home, Menu, ChevronRight, ChevronLeft, CheckSquare, X, Send, UserX, Eye } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Calendar, Users, Star, Settings, Upload, RefreshCw, Pencil, Ban, RotateCcw, Lock, Info, CheckCircle2, Home,HV, Menu, ChevronRight, ChevronLeft, CheckSquare, X, Send, UserX, Eye } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc, query, where } from "firebase/firestore";
 import { generateId, HOURS, getWeekDays, formatDate, formatTime, getStartOfWeek, getSlotId, isPastTime } from './utils/helpers';
 
 // --- Components ---
+
 const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, style = {} }) => {
   const base = "h-12 px-6 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
+  
+  // نستخدم كلاسات Tailwind للألوان بدلاً من التلاعب بالـ style يدوياً للـ variants الثابتة
   const styles = {
-    primary: "text-white shadow-md", 
-    danger: "bg-red-50 text-red-600 border border-red-100",
-    outline: "border-2 border-gray-100 text-gray-700 bg-white",
+    primary: "text-white shadow-md hover:opacity-90", 
+    danger: "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100",
+    outline: "border-2 border-gray-100 text-gray-700 bg-white hover:border-gray-300",
     ghost: "bg-transparent text-gray-500 hover:bg-gray-50 shadow-none h-auto p-2",
     float: "fixed bottom-24 left-6 right-6 shadow-xl z-30 text-lg py-4 h-auto"
   };
+
   return <button onClick={onClick} disabled={disabled} style={style} className={`${base} ${styles[variant]} ${className}`}>{children}</button>;
 };
 
 const BottomNav = ({ activeTab, setActiveTab, role, color }) => {
   const navItemClass = (tab) => `flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === tab ? 'font-bold' : 'text-gray-400'}`;
+  
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-200 flex justify-around items-center z-40 pb-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]">
+    <div className="fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-md border-t border-gray-200 flex justify-around items-center z-40 pb-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]">
       <button onClick={() => setActiveTab('home')} className={navItemClass('home')} style={{ color: activeTab === 'home' ? color : undefined }}><Home size={28} strokeWidth={activeTab === 'home' ? 2.5 : 2} /><span className="text-[10px]">الرئيسية</span></button>
       {role === 'admin' && (<>
         <button onClick={() => setActiveTab('members')} className={navItemClass('members')} style={{ color: activeTab === 'members' ? color : undefined }}><Users size={28} strokeWidth={activeTab === 'members' ? 2.5 : 2} /><span className="text-[10px]">الأعضاء</span></button>
@@ -40,30 +45,27 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [memberDays, setMemberDays] = useState([]); 
   const [isReviewing, setIsReviewing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  
-  // New State: To check if user made changes but didn't save yet
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const days = getWeekDays(weekStart);
   const isScheduleFrozen = bookedSlots.length > 0;
 
-  // Load Initial Data (Only once on mount)
+  // تحميل البيانات الأولية
   useEffect(() => {
     if (readOnlyView) {
       setSelected(readOnlySlots);
     } else {
-      // ⚠️ Important: We only load data initially. We don't overwrite user's local edits.
-      const unsub = onSnapshot(doc(db, "availability", userId), (doc) => {
-        if (doc.exists() && !hasUnsavedChanges) { // Only update if no unsaved changes
-           setSelected(doc.data().slots || []);
+      const unsub = onSnapshot(doc(db, "availability", userId), (docSnapshot) => {
+        // نقوم بالتحديث فقط إذا لم يكن لدى المستخدم تغييرات غير محفوظة، لمنع الكتابة فوق عمله
+        if (docSnapshot.exists() && !hasUnsavedChanges) { 
+           setSelected(docSnapshot.data().slots || []);
         }
       });
       return () => unsub();
     }
-  }, [userId, readOnlyView]); // Removed hasUnsavedChanges from dep array to avoid loops
+  }, [userId, readOnlyView]); // أزلنا hasUnsavedChanges لتجنب التكرار اللانهائي
 
   useEffect(() => {
-    // Initial Setup for "Today" index
     const today = new Date();
     const todayIdx = days.findIndex(d => d.toDateString() === today.toDateString());
     setActiveDayIndex(todayIdx !== -1 ? todayIdx : 0);
@@ -81,15 +83,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const daysToShow = role === 'admin' ? days : memberDays;
   const activeDate = daysToShow.length > 0 ? daysToShow[activeDayIndex] || daysToShow[0] : new Date();
 
-  const goToday = () => {
-    setWeekStart(getStartOfWeek(new Date()));
-  };
+  const goToday = () => setWeekStart(getStartOfWeek(new Date()));
 
   const toggleSlot = (date, hour) => {
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     
-    // Validations
     if (bookedSlots.some(m => m.slot === slotId)) return alert("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.");
     if (isScheduleFrozen) return alert("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.");
     if (isPastTime(date, hour)) return alert("لا يمكن تحديد وقت في الماضي!");
@@ -97,26 +96,21 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     const isOwnerAdmin = role === 'admin';
     if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return alert("الوقت غير متاح من المدير.");
     
-    // Toggle Logic
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
-    
     setSelected(newSelected);
-    setHasUnsavedChanges(true); // Now we know user edited something
+    setHasUnsavedChanges(true);
   };
 
   const handleInitialSave = () => {
-    if (role === 'admin') {
-        saveChanges(); 
-    } else {
-        setIsReviewing(true); 
-    }
+    if (role === 'admin') saveChanges(); 
+    else setIsReviewing(true); 
   };
   
   const saveChanges = async () => {
     if (isScheduleFrozen) return;
     try {
       await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active' }, { merge: true });
-      setHasUnsavedChanges(false); // Reset unsaved flag
+      setHasUnsavedChanges(false);
       if (onSave) onSave();
       if (role === 'admin') alert("✅ تم الحفظ (سحابياً)");
       else {
@@ -130,10 +124,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (!window.confirm("هل أنت متأكد أنك غير متاح؟")) return;
     try {
       await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy' }, { merge: true });
+      setSelected([]); // تفريغ التحديد محلياً
+      setHasUnsavedChanges(false);
       alert("تم الإبلاغ.");
     } catch (e) { alert("خطأ: " + e.message); }
   };
 
+  // Group selections for review modal
   const groupedSelections = selected.reduce((acc, slot) => {
     const [y, m, d, h] = slot.split('-');
     const dateKey = `${y}-${m}-${d}`;
@@ -193,21 +190,22 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
                 let slotStyle = {};
                 let slotClass = "bg-gray-50 border-gray-100 text-gray-400";
-
+                
                 if (isBooked) {
                   return (
-                    <div key={hour} onClick={() => !readOnlyView && toggleSlot(activeDate, hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-center border bg-red-50 border-red-200 text-red-500 opacity-90`}>
+                    <div key={hour} onClick={() => !readOnlyView && toggleSlot(activeDate, hour)} className={`h-14 rounded-2xl text-xs font-bold flex flex-col items-center justify-centerSC border bg-red-50SC border-red-200 text-red-500 opacity-90 cursor-not-allowed`}>
                         <div className="flex items-center gap-1"><CheckSquare size={12}/> {formatTime(hour)}</div>
                         <span className="text-[9px]">تم الحجز</span>
                     </div>
                   );
                 }
+
                 if (isPast) slotClass = "bg-gray-50 opacity-30 cursor-not-allowed text-gray-300";
                 else if (!isAllowed) slotClass = "bg-gray-50 opacity-40 cursor-not-allowed border-dashed border-gray-200";
                 else if (isSelected) {
                   slotStyle = { backgroundColor: themeColor, color: 'white', boxShadow: `0 4px 12px ${themeColor}60` };
                   slotClass = "transform scale-105 font-bold border-transparent";
-                } else slotClass = "bg-white border-gray-200 text-gray-600 hover:border-gray-400";
+                } else slotClass = "bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:bg-blue-50";
                 
                 if (isScheduleFrozen && !isBooked && !readOnlyView) slotClass += " cursor-not-allowed opacity-60";
 
@@ -229,7 +227,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
           </div>
         </>
       ) : (
-        <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xl border border-gray-100 shadow-sm mt-4">
+        <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xlHv border border-gray-100 shadow-sm mt-4">
            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4"><Calendar size={40} className="text-gray-300"/></div>
            <p className="font-bold text-gray-600">لا توجد أيام متاحة حالياً</p>
            <p className="text-xs mt-2 text-gray-400">يرجى انتظار المدير لتحديد المواعيد القادمة.</p>
@@ -241,15 +239,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             <Button onClick={markAsBusy} className="flex-1 bg-red-100 text-red-600 shadow-lg text-xs" style={{ height: 'auto', padding: '12px' }}>
                <UserX size={16}/> غير مناسب لي
             </Button>
-            {/* Save button only enabled if there are unsaved changes OR selections made */}
-            <Button onClick={handleInitialSave} disabled={selected.length === 0} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">
-               حفظ التغييرات ({selected.length}) 💾
+            <Button onClick={handleInitialSave} disabled={selected.length === 0 && !hasUnsavedChanges} style={{ backgroundColor: themeColor, flex: 2 }} className="text-white shadow-lg">
+               {hasUnsavedChanges ? `حفظ التغييرات (${selected.length})` : `مراجعة (${selected.length})`} 💾
             </Button>
          </div>
       )}
       
       {role === 'admin' && !isScheduleFrozen && (
-         // Admin Save Button: Only shows/enabled if there are changes to save
          <Button variant="float" onClick={saveChanges} disabled={!hasUnsavedChanges} style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#ccc' }} className="text-white transition-colors">
             {hasUnsavedChanges ? 'حفظ التغييرات 💾' : 'تم الحفظ ✅'}
          </Button>
@@ -266,7 +262,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
              <div className="space-y-4 mb-6">
                 {Object.keys(groupedSelections).length === 0 ? <p className="text-center text-red-500 bg-red-50 p-4 rounded-xl">لم تقم باختيار أي موعد!</p> : 
                    Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
-                      <div key={dateStr} className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
+                      <div key={dateStr} className="borderHv border-gray-100 rounded-2xl p-4 bg-gray-50">
                          <div className="font-bold text-gray-700 mb-2 flex items-center gap-2"><Calendar size={16}/> {formatDate(new Date(dateStr))}</div>
                          <div className="flex flex-wrap gap-2">{hours.sort((a,b)=>a-b).map(h => (<span key={h} className="text-xs bg-white border border-gray-200 px-3 py-1 rounded-lg font-bold text-gray-600">{formatTime(h)}</span>))}</div>
                       </div>
@@ -274,7 +270,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 }
              </div>
              <div className="flex gap-3">
-                <Button onClick={confirmSave} style={{ backgroundColor: themeColor }} className="flex-1 text-white">تأكيد وإرسال <Send size={16}/></Button>
+                <Button onClick={saveChanges} style={{ backgroundColor: themeColor }} className="flex-1 text-white">تأكيد وإرسال <Send size={16}/></Button>
                 <Button onClick={() => setIsReviewing(false)} variant="outline" className="flex-1">رجوع</Button>
              </div>
           </div>
@@ -302,17 +298,17 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
-  const [availability, setAvailability] = useState({}); // For admin to see member status
+  const [availability, setAvailability] = useState({}); 
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
-
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
-  const [inspectMember, setInspectMember] = useState(null); // Admin viewing member schedule
+  const [inspectMember, setInspectMember] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    // التحقق من وجود الأدمن، إذا لم يكن موجوداً قم بإنشائه (لأغراض التطوير فقط)
     const checkAdmin = async () => {
        const q = query(collection(db, "users"), where("username", "==", "admin"));
        const snap = await getDocs(q);
@@ -322,21 +318,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // الاستماع للبيانات في الوقت الحقيقي
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (doc) => { if (doc.exists()) setSettings(doc.data()); });
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { if (doc.exists()) setAdminSlots(doc.data().slots || []); else setAdminSlots([]); });
-    // Listen to ALL availability for dashboard status
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
        setAvailability(data);
     });
+
     return () => { unsubMembers(); unsubMeetings(); unsubSettings(); unsubAdminAvail(); unsubAllAvail(); };
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    // ⚠️ تنبيه أمني: هذا التحقق غير آمن للإنتاج، يفضل استخدام Firebase Auth لاحقاً
     const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
     const snap = await getDocs(q);
     if (!snap.empty) { setUser(snap.docs[0].data()); setView('app'); setActiveTab('home'); } else alert("بيانات خاطئة");
@@ -353,6 +351,7 @@ export default function App() {
   const openAddModal = () => { setMemberForm({ name: '', username: '', password: '' }); setEditingMemberId(null); setIsModalOpen(true); };
   const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
   const closeModal = () => { setIsModalOpen(false); setEditingMemberId(null); };
+
   const saveSettings = async () => { await setDoc(doc(db, "settings", "main"), settings); alert("تم التحديث!"); };
   const handleLogoUpload = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setSettings({ ...settings, logo: reader.result }); }; reader.readAsDataURL(file); } };
 
@@ -363,7 +362,6 @@ export default function App() {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      // Use the availability state we already have
       const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
       return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
     }).filter(Boolean);
@@ -372,12 +370,11 @@ export default function App() {
   };
 
   const bookMeeting = async (slot) => { if (!window.confirm("حجز الموعد؟")) return; const id = generateId(); await setDoc(doc(db, "meetings", id), { id, slot, createdAt: new Date().toISOString() }); setAnalysisResult(null); };
-  const cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
+  constHV cancelMeeting = async (meetingId) => { if (!window.confirm("إلغاء الاجتماع؟")) return; await deleteDoc(doc(db, "meetings", meetingId)); };
   const resetAllAvailability = async () => { if (!window.confirm("⚠️ تصفير كامل للجداول؟ (لا يمكن التراجع)")) return; const snap = await getDocs(collection(db, "availability")); snap.forEach(d => { deleteDoc(doc(db, "availability", d.id)); }); alert("تم التصفير. ابدأوا من جديد."); };
 
-  // Helper to get member status text/color
   const getMemberStatus = (mId) => {
-    const userAvail = availability[mId];
+    constHV userAvail = availability[mId];
     if (!userAvail) return { text: 'لم يدخل', color: 'bg-gray-100 text-gray-400' };
     if (userAvail.status === 'busy') return { text: 'مشغول', color: 'bg-red-100 text-red-600' };
     if (userAvail.slots && userAvail.slots.length > 0) return { text: 'تم التحديد', color: 'bg-green-100 text-green-600' };
@@ -386,13 +383,13 @@ export default function App() {
 
   if (view === 'login') {
     return (
-      <div className="min-h-screen flex flex-col justify-center bg-gray-50 p-6" dir="rtl">
+      <div className="min-h-screen flex flex-colHV justify-center bg-gray-50 p-6" dir="rtl">
         <div className="text-center mb-10 animate-fade-in">
           {settings.logo ? <img src={settings.logo} className="w-24 h-24 mx-auto mb-4 rounded-2xl object-cover shadow-lg"/> : <div className="inline-flex p-6 bg-white rounded-3xl mb-4 shadow-md" style={{ color: settings.primaryColor }}><Calendar size={40}/></div>}
           <h1 className="text-3xl font-black text-gray-800">{settings.teamName}</h1>
           <p className="text-gray-400 mt-2 font-medium">تسجيل الدخول</p>
         </div>
-        <form onSubmit={handleLogin} className="space-y-4 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <form onSubmit={handleLogin} className="space-y-4 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-sm mx-auto w-full">
           <input className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="اسم المستخدم" value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})} />
           <input type="password" className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="كلمة المرور" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
           <Button className="w-full h-14 text-lg mt-4" style={{ backgroundColor: settings.primaryColor }}>دخول</Button>
@@ -410,10 +407,11 @@ export default function App() {
         </div>
         <Button variant="ghost" onClick={() => { setUser(null); setView('login'); }}><LogOut size={20}/></Button>
       </div>
-
+      
       <div className="p-5 max-w-lg mx-auto pb-24">
-        {activeTab === 'home' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+        
+        {/* الصفحة الرئيسية: نستخدم display بدل الحذف الشرطي للحفاظ على الـ state */}
+        <div style={{ display: activeTab === 'home' ? 'block' : 'none' }} className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
             {user.role !== 'admin' && (
               <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
                  <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
@@ -421,6 +419,7 @@ export default function App() {
                  <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق! 🚀</p>
               </div>
             )}
+
             {meetings.length > 0 && (
                <div>
                  <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">📅 اجتماعات مؤكدة</h3>
@@ -440,19 +439,17 @@ export default function App() {
                  </div>
                </div>
             )}
+
             <div>
                <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">{user.role === 'admin' ? '⚡ الأوقات المتاحة للفريق' : '📌 حدد أوقات فراغك'}</h3>
                <DailyScheduler userId={user.id} role={user.role} adminSlots={adminSlots} themeColor={settings.primaryColor} bookedSlots={meetings} />
             </div>
-          </div>
-        )}
+        </div>
 
-        {/* Members Tab with Status and Inspection */}
+        {/* صفحة الأعضاء */}
         {activeTab === 'members' && (
            <div className="animate-in fade-in space-y-4">
               <div className="flex justify-between items-center px-1"><h2 className="font-bold text-lg">الأعضاء</h2><button onClick={openAddModal} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1"><UserPlus size={14}/> جديد</button></div>
-              
-              {/* Member List */}
               {members.map(m => {
                 const status = getMemberStatus(m.id);
                 return (
@@ -461,12 +458,10 @@ export default function App() {
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500">{m.name[0]}</div>
                       <div>
                         <div className="font-bold text-gray-800">{m.name}</div>
-                        {/* Status Badge */}
                         <div className={`text-[10px] px-2 py-0.5 rounded-md w-fit mt-1 ${status.color}`}>{status.text}</div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {/* Inspect Button (Only if has slots) */}
                       {status.text === 'تم التحديد' && (
                         <button onClick={() => setInspectMember(m)} className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-100"><Eye size={16}/></button>
                       )}
@@ -479,7 +474,7 @@ export default function App() {
            </div>
         )}
 
-        {/* ... (Settings, Analysis, Profile - Same) ... */}
+        {/* صفحة الإعدادات (للأدمن فقط) */}
         {activeTab === 'settings' && user.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
              <div className="text-center py-4"><h2 className="text-xl font-bold text-gray-800">إعدادات الفريق</h2></div>
@@ -494,6 +489,7 @@ export default function App() {
           </div>
         )}
 
+        {/* صفحة التحليل */}
         {activeTab === 'analysis' && (
            <div className="animate-in fade-in">
               <div className="bg-white p-8 rounded-3xl text-center shadow-sm border border-gray-100 mb-6">
@@ -515,11 +511,12 @@ export default function App() {
            </div>
         )}
 
+        {/* صفحة البروفايل */}
         {activeTab === 'profile' && (
            <div className="animate-in fade-in p-4">
               <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 text-center relative overflow-hidden">
                  <div className="absolute top-0 left-0 right-0 h-24 opacity-10" style={{ backgroundColor: settings.primaryColor }}></div>
-                 <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto mb-4 flex items-center justify-center text-4xl font-bold text-white relative z-10" style={{ backgroundColor: settings.primaryColor }}>{user.name[0]}</div>
+                 <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto mb-4 flex items-center justify-center text-4xl font-bold text-whiteHv relative z-10" style={{ backgroundColor: settings.primaryColor }}>{user.name[0]}</div>
                  <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
                  <p className="text-gray-400 font-medium mb-8">@{user.username}</p>
                  <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-right"><p className="text-xs text-gray-400 font-bold mb-2">الفريق</p><div className="flex items-center gap-2 font-bold text-gray-700">{settings.logo && <img src={settings.logo} className="w-6 h-6 rounded-md"/>}{settings.teamName}</div></div>
@@ -527,16 +524,18 @@ export default function App() {
               </div>
            </div>
         )}
+
       </div>
 
+      {/* المودالز (Modals) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[30px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
             <h3 className="text-xl font-bold mb-6 text-center">{editingMemberId ? 'تعديل عضو' : 'عضو جديد'}</h3>
             <div className="space-y-4">
-              <input placeholder="الاسم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
-              <input placeholder="اسم المستخدم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value})} />
-              <input placeholder="كلمة المرور" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
+              <input placeholder="الاسم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.name} onChange={e => setMemberForm({...memberForm, name: e.target.value})} />
+              <input placeholder="اسم المستخدم" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.username} onChange={e => setMemberForm({...memberForm, username: e.target.value})} />
+              <input placeholder="كلمة المرور" className="w-full h-14 px-5 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-blue-500" value={memberForm.password} onChange={e => setMemberForm({...memberForm, password: e.target.value})} />
               <Button onClick={handleMemberSubmit} style={{ backgroundColor: settings.primaryColor }} className="w-full mt-2 text-white">{editingMemberId ? 'حفظ' : 'إضافة'}</Button>
             </div>
             <button onClick={closeModal} className="w-full mt-4 text-gray-400 font-bold text-sm">إلغاء</button>
@@ -544,10 +543,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Inspect Member Modal */}
       {inspectMember && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-           <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+           <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
                  <h3 className="font-bold text-gray-800">جدول: {inspectMember.name}</h3>
                  <button onClick={() => setInspectMember(null)}><X/></button>
