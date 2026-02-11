@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, ChevronRight, ChevronLeft, CheckSquare, Ban, Lock, Send, UserX, Check, Clock, CalendarDays, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../utils/firebase';
 import { getStartOfWeek, getWeekDays, getSlotId, isPastTime, formatDate, formatTime, HOURS } from '../utils/helpers';
 import Button from './Button';
 
-// استقبل الدوال الجديدة من الـ Props
 const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], readOnlyView = false, readOnlySlots = [], onShowToast, onTriggerConfirm }) => {
   const [selected, setSelected] = useState([]);
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
@@ -77,13 +76,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (readOnlyView) return;
     const slotId = getSlotId(date, hour);
     
-    // استبدال alert بـ onShowToast
-    if (bookedSlots.some(m => m.slot === slotId)) return onShowToast("⛔ هذا الموعد تم اعتماده كاجتماع رسمي.", "error");
-    if (isScheduleFrozen) return onShowToast("⛔ الجدول مغلق بالكامل لوجود اجتماع مؤكد.", "error");
+    if (bookedSlots.some(m => m.slot === slotId)) return onShowToast("هذا الموعد تم اعتماده كاجتماع رسمي", "error");
+    if (isScheduleFrozen) return onShowToast("الجدول مغلق بالكامل لوجود اجتماع مؤكد", "error");
     if (isPastTime(date, hour)) return onShowToast("لا يمكن تحديد وقت في الماضي!", "error");
     
     const isOwnerAdmin = role === 'admin';
-    if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return onShowToast("الوقت غير متاح من المدير.", "error");
+    if (!isOwnerAdmin && adminSlots && !adminSlots.includes(slotId)) return onShowToast("الوقت غير متاح من المدير", "error");
     
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
     setSelected(newSelected);
@@ -103,7 +101,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       await setDoc(doc(db, "availability", userId), { slots: selected, status: 'active', updatedAt: serverTimestamp() }, { merge: true });
       setHasUnsavedChanges(false);
       if (onSave) onSave();
-      if (role === 'admin') onShowToast("✅ تم الحفظ (سحابياً)");
+      if (role === 'admin') onShowToast("تم الحفظ بنجاح");
       else {
           setIsReviewing(false);
           setIsSuccess(true);
@@ -125,7 +123,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 onShowToast(e.message, "error");
             }
           },
-          true // isDestructive
+          true 
       );
   };
 
@@ -157,26 +155,14 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
       {daysToShow.length > 0 ? (
         <>
-          {/* شريط الأيام القابل للسحب */}
-          <div 
-            ref={sliderRef}
-            onMouseDown={handleMouseDown}
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
-            className={`flex overflow-x-auto pt-6 pb-4 gap-3 no-scrollbar px-2 snap-x cursor-grab active:cursor-grabbing ${isDown ? 'snap-none' : ''}`}
-          >
+          <div className="flex overflow-x-auto pt-6 pb-4 gap-3 no-scrollbar px-2 snap-x cursor-grab active:cursor-grabbing" ref={sliderRef} onMouseDown={handleMouseDown} onMouseLeave={handleMouseLeave} onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
             {daysToShow.map((d, i) => {
               const dateKey = d.toISOString().split('T')[0];
               const isSelected = activeDayIndex === i;
               const hasData = selected.some(s => s.startsWith(getSlotId(d, 10).slice(0, 10)));
               return (
                 <button key={dateKey} onClick={() => !isDown && setActiveDayIndex(i)} 
-                  style={{ 
-                      borderColor: isSelected ? themeColor : 'transparent', 
-                      backgroundColor: isSelected ? `${themeColor}10` : 'white', 
-                      color: isSelected ? themeColor : '#9ca3af' 
-                  }}
+                  style={{ borderColor: isSelected ? themeColor : 'transparent', backgroundColor: isSelected ? `${themeColor}10` : 'white', color: isSelected ? themeColor : '#9ca3af' }}
                   className={`flex-shrink-0 snap-start flex flex-col items-center justify-center w-[18%] aspect-[3/4] rounded-2xl border-2 transition-all duration-200 shadow-sm select-none ${isSelected ? 'scale-110 shadow-lg -translate-y-1' : 'scale-100'}`}>
                   <span className="text-[10px] font-bold opacity-80">{formatDate(d).split(' ')[0]}</span>
                   <span className="text-xl font-bold">{d.getDate()}</span>
@@ -233,12 +219,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                     key={hour} 
                     disabled={(isPast || (!isAllowed && !isOwnerAdmin) || isScheduleFrozen) && !readOnlyView} 
                     onClick={() => toggleSlot(activeDate, hour)}
-                    style={isSelected ? { 
-                        backgroundColor: themeColor, 
-                        color: 'white', 
-                        boxShadow: `0 8px 16px -4px ${themeColor}60`,
-                        transform: 'scale(1.05)'
-                    } : {}} 
+                    style={isSelected ? { backgroundColor: themeColor, color: 'white', boxShadow: `0 8px 16px -4px ${themeColor}60`, transform: 'scale(1.05)' } : {}} 
                     className={`h-14 rounded-2xl text-sm transition-all duration-200 flex flex-col items-center justify-center border relative overflow-hidden group
                         ${isSelected ? 'font-bold border-transparent' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-200 hover:bg-blue-50'}
                         ${isScheduleFrozen && !readOnlyView ? 'cursor-not-allowed opacity-60' : ''}
@@ -264,17 +245,15 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </>
       ) : (
         <div className="text-center py-20 text-gray-400 flex flex-col items-center bg-white rounded-3xl border border-gray-100 shadow-sm mt-4">
-           <div className="text-4xl mb-4">📅</div>
+           <Calendar size={48} className="text-gray-300 mb-4"/>
            <p className="font-bold text-gray-600">لا توجد أيام متاحة حالياً</p>
            <p className="text-xs mt-2 text-gray-400">يرجى انتظار المدير لتحديد المواعيد القادمة.</p>
         </div>
       )}
 
-      {/* شريط الإجراءات السفلي */}
       {role !== 'admin' && daysToShow.length > 0 && !isScheduleFrozen && (
          <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
             <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
-                
                 <button 
                     onClick={handleMarkBusy} 
                     className="flex-1 h-14 bg-white border-2 border-red-100 text-red-500 rounded-2xl font-bold text-xs shadow-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
@@ -308,13 +287,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                     style={{ backgroundColor: hasUnsavedChanges ? themeColor : '#374151' }} 
                     className="w-full h-14 text-lg shadow-xl"
                 >
-                    {hasUnsavedChanges ? '💾 حفظ التعديلات' : '✅ البيانات محفوظة'}
+                    {hasUnsavedChanges ? 'حفظ التعديلات' : 'البيانات محفوظة'}
+                    <CheckCircle2 size={20} className="ml-2"/>
                 </Button>
              </div>
          </div>
       )}
 
-      {/* مودال المراجعة */}
       {isReviewing && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
@@ -328,7 +307,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
              </div>
              
              <div className="space-y-3 mb-8">
-                {Object.keys(groupedSelections).length === 0 ? <p className="text-center text-red-500 bg-red-50 p-4 rounded-xl font-bold">لم تقم باختيار أي موعد!</p> : 
+                {Object.keys(groupedSelections).length === 0 ? (
+                    <div className="text-center bg-red-50 p-6 rounded-2xl">
+                        <AlertTriangle className="mx-auto text-red-500 mb-2" size={32}/>
+                        <p className="text-red-600 font-bold">لم تقم باختيار أي موعد!</p>
+                    </div>
+                ) : 
                    Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
                       <div key={dateStr} className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 flex flex-col gap-3">
                          <div className="font-bold text-gray-700 flex items-center gap-2 text-sm">
@@ -348,7 +332,9 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
              </div>
              
              <div className="flex gap-3">
-                <Button onClick={saveChanges} style={{ backgroundColor: themeColor }} className="flex-[2] text-white h-14 text-lg shadow-xl">إرسال للمدير 🚀</Button>
+                <Button onClick={saveChanges} style={{ backgroundColor: themeColor }} className="flex-[2] text-white h-14 text-lg shadow-xl">
+                    إرسال للمدير <Send size={18} className="mr-2"/>
+                </Button>
                 <button onClick={() => setIsReviewing(false)} className="flex-1 h-14 rounded-xl border-2 border-gray-100 font-bold text-gray-500 hover:bg-gray-50">تعديل</button>
              </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock } from 'lucide-react';
+import { Trash2, UserPlus, LogOut, Star, Settings, Upload, RotateCcw, Info, CheckCircle2, X, Eye, Pencil, Calendar, Clock, Edit } from 'lucide-react';
 import { db } from './utils/firebase';
 import { collection, doc, setDoc, updateDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, formatDate, formatTime, isPastTime } from './utils/helpers';
@@ -20,7 +20,6 @@ export default function App() {
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
   const [availability, setAvailability] = useState({}); 
-  // القيم الافتراضية
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
@@ -39,7 +38,6 @@ export default function App() {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // 1. جلب الإعدادات فوراً (عشان الشعار يظهر في صفحة الدخول) - تم الإصلاح ✅
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) setSettings(docSnap.data()); 
@@ -47,7 +45,6 @@ export default function App() {
     return () => unsubSettings();
   }, []);
 
-  // 2. التأكد من وجود حساب للأدمن (مرة واحدة فقط)
   useEffect(() => {
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
@@ -57,17 +54,15 @@ export default function App() {
                 id: "admin",
                 name: "المدير",
                 username: "admin",
-                password: "admin", // كلمة السر الافتراضية
+                password: "admin",
                 role: "admin",
                 createdAt: serverTimestamp()
             });
-            console.log("Admin account initialized");
         }
     };
     initAdmin();
   }, []);
 
-  // 3. استرجاع الجلسة
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
@@ -76,24 +71,19 @@ export default function App() {
     }
   }, []);
 
-  // 4. جلب باقي البيانات (فقط عند تسجيل الدخول)
   useEffect(() => {
     if (!user) return;
-    
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
-    
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
         else setAdminSlots([]);
     });
-
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
        setAvailability(data);
     });
-
     return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
@@ -102,7 +92,6 @@ export default function App() {
     try {
         const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
         const snap = await getDocs(q);
-        
         if (!snap.empty) {
             const userData = snap.docs[0].data();
             setUser(userData);
@@ -124,20 +113,9 @@ export default function App() {
       setAdminSlots([]);
   };
 
-  // --- إدارة الأعضاء ---
-  const openAddModal = () => { 
-      setMemberForm({ name: '', username: '', password: '' }); 
-      setEditingMemberId(null); 
-      setIsModalOpen(true); 
-  };
-
-  const openEditModal = (member) => { 
-      setMemberForm({ name: member.name, username: member.username, password: member.password }); 
-      setEditingMemberId(member.id); 
-      setIsModalOpen(true); 
-  };
-
-  // زر جديد لتعديل البروفايل الحالي
+  const openAddModal = () => { setMemberForm({ name: '', username: '', password: '' }); setEditingMemberId(null); setIsModalOpen(true); };
+  const openEditModal = (member) => { setMemberForm({ name: member.name, username: member.username, password: member.password }); setEditingMemberId(member.id); setIsModalOpen(true); };
+  
   const openEditProfile = () => {
       setMemberForm({ name: user.name, username: user.username, password: user.password });
       setEditingMemberId(user.id);
@@ -147,29 +125,15 @@ export default function App() {
   const handleSaveMember = async () => {
     if (!memberForm.name || !memberForm.username || !memberForm.password) return showToast("البيانات ناقصة", "error");
     try {
-        // إذا كنا نعدل بيانات الأدمن، نستخدم الـ ID 'admin'، وإلا نستخدم الـ ID الموجود أو ننشئ جديد
         const id = editingMemberId || generateId();
-        
-        // الحفاظ على الدور كما هو (لو بعدل الأدمن يفضل أدمن)
         const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
-
-        const userData = { 
-            id, 
-            name: memberForm.name, 
-            username: memberForm.username, 
-            password: memberForm.password, 
-            role: role, 
-            createdAt: serverTimestamp() 
-        };
-        
+        const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: role, createdAt: serverTimestamp() };
         await setDoc(doc(db, "users", id), userData, { merge: true });
         
-        // تحديث البيانات المحلية لو المستخدم بيعدل حسابه
         if (user && user.id === id) {
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
         }
-
         setIsModalOpen(false);
         showToast(editingMemberId ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
     } catch (e) { showToast(e.message, "error"); }
@@ -281,7 +245,7 @@ export default function App() {
                   <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
                      <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
                      <h3 className="font-bold text-blue-900 mb-2 relative z-10 flex items-center gap-2"><CheckCircle2 size={18}/> تنبيه هام</h3>
-                     <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق! 🚀</p>
+                     <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق!</p>
                   </div>
                 )}
 
@@ -388,8 +352,14 @@ export default function App() {
                      <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto mb-4 flex items-center justify-center text-4xl font-bold text-white relative z-10" style={{ backgroundColor: settings.primaryColor }}>{user.name[0]}</div>
                      <h2 className="text-2xl font-bold text-gray-800">{user.name}</h2>
                      <p className="text-gray-400 font-medium mb-8">@{user.username}</p>
-                     {/* زر تعديل البيانات */}
-                     <button onClick={openEditProfile} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold mb-6 hover:bg-gray-200">تعديل بياناتي ✏️</button>
+                     
+                     {/* زر التعديل يظهر فقط للأدمن */}
+                     {user.role === 'admin' && (
+                        <button onClick={openEditProfile} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold mb-6 hover:bg-gray-200 flex items-center justify-center gap-2 mx-auto">
+                            <Edit size={16}/> تعديل بياناتي
+                        </button>
+                     )}
+
                      <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-right"><p className="text-xs text-gray-400 font-bold mb-2">الفريق</p><div className="flex items-center gap-2 font-bold text-gray-700">{settings.logo && <img src={settings.logo} className="w-6 h-6 rounded-md"/>}{settings.teamName}</div></div>
                      <Button onClick={handleLogout} variant="danger" className="w-full">تسجيل الخروج</Button>
                   </div>
