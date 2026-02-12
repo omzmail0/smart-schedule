@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, ArrowRight } from 'lucide-react'; // السهم للرجوع
+import { Calendar, ArrowRight, ShieldAlert } from 'lucide-react';
 import Button from './Button';
 
 const AuthScreen = ({ onLogin, settings, onBack }) => {
@@ -32,12 +32,13 @@ const AuthScreen = ({ onLogin, settings, onBack }) => {
             <p className="text-gray-400 font-medium text-sm">أهلاً بك، سجل دخولك للمتابعة</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 bg-white p-8 rounded-[2rem] shadow-lg border border-gray-100 w-full">
+          <form onSubmit={handleSubmit} className="space-y-4 bg-white p-8 rounded-[2rem] shadow-lg border border-gray-100 w-full mb-6">
             <div>
                 <label className="block text-xs font-bold text-gray-400 mb-1.5 mr-1">اسم المستخدم</label>
                 <input 
-                    className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700" 
+                    className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700 placeholder:font-normal" 
                     style={{ '--tw-ring-color': settings.primaryColor }} 
+                    placeholder="اكتب اسمك هنا"
                     value={loginData.username} 
                     onChange={e => setLoginData({...loginData, username: e.target.value.replace(/\s/g, '')})} 
                 />
@@ -47,8 +48,9 @@ const AuthScreen = ({ onLogin, settings, onBack }) => {
                 <label className="block text-xs font-bold text-gray-400 mb-1.5 mr-1">كلمة المرور</label>
                 <input 
                     type="password" 
-                    className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700" 
+                    className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700 placeholder:font-normal" 
                     style={{ '--tw-ring-color': settings.primaryColor }} 
+                    placeholder="••••••••" 
                     value={loginData.password} 
                     onChange={e => setLoginData({...loginData, password: e.target.value})} 
                 />
@@ -56,6 +58,18 @@ const AuthScreen = ({ onLogin, settings, onBack }) => {
 
             <Button className="w-full h-14 text-base mt-4 font-bold shadow-lg" style={{ backgroundColor: settings.primaryColor }}>دخول</Button>
           </form>
+
+          {/* التنبيه تم نقله هنا */}
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-start gap-3">
+             <ShieldAlert size={20} className="text-orange-500 shrink-0 mt-0.5"/>
+             <div>
+                <h4 className="font-bold text-gray-800 text-xs mb-1">ليس لديك حساب؟</h4>
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                    النظام خاص بالأعضاء. تواصل مع <strong>مسؤول الفريق</strong> لإنشاء حساب لك.
+                </p>
+             </div>
+          </div>
+          
       </div>
     </div>
   );

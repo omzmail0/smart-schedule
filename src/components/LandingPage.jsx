@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, UserCog, ArrowLeft, ShieldAlert, ArrowDown } from 'lucide-react';
+import { Calendar, UserCog, ArrowLeft, ArrowDown } from 'lucide-react';
 import Button from './Button';
 
 const LandingPage = ({ onStart, settings }) => {
@@ -97,19 +97,6 @@ const LandingPage = ({ onStart, settings }) => {
             >
                 ابدأ اختيار مواعيدك <ArrowLeft size={20}/>
             </Button>
-        </div>
-
-        {/* Clean Alert - بدون أزرار */}
-        <div className="w-full max-w-lg bg-orange-50/50 border border-orange-100 rounded-2xl p-4 flex items-center gap-4 text-right mx-auto">
-            <div className="bg-orange-100 p-3 rounded-full shrink-0">
-                <ShieldAlert size={20} className="text-orange-600"/>
-            </div>
-            <div>
-                <h4 className="font-bold text-gray-800 text-sm mb-1">ليس لديك حساب؟</h4>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                    الدخول متاح للأعضاء المسجلين فقط. يرجى التواصل مع <strong>مسؤول الفريق</strong> لإنشاء حساب لك واستلام بيانات الدخول.
-                </p>
-            </div>
         </div>
 
       </main>
