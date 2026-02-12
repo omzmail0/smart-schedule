@@ -74,16 +74,19 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   };
 
   const handleMarkBusy = async () => {
-        // لا نحتاج لتأكيد هنا لأننا سنظهر هذا الزر فقط في الشاشة النهائية إذا لم يختر أي شيء
         try {
             await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
             setSelected([]); setHasUnsavedChanges(false); setIsSuccess(true);
         } catch(e) { onShowToast(e.message, "error"); }
   };
 
+  const groupedSelections = selected.reduce((acc, slot) => {
+    const [y, m, d, h] = slot.split('-'); const dateKey = `${y}-${m}-${d}`;
+    if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(h); return acc;
+  }, {});
+
   // --- Render for MEMBER (Wizard Step-by-Step View) ---
   if (role !== 'admin') {
-      // 1. Prepare Data
       const sortedAdminSlots = [...adminSlots].sort((a, b) => {
           const dateA = new Date(a.split('-').slice(0,3).join('-') + ' ' + a.split('-')[3] + ':00');
           const dateB = new Date(b.split('-').slice(0,3).join('-') + ' ' + b.split('-')[3] + ':00');
@@ -104,7 +107,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       const totalSteps = dayKeys.length;
       const isFinalStep = currentStep === totalSteps;
 
-      // دالة الانتقال للخطوة التالية مع التحقق
       const handleNextStep = () => {
           if (currentStep < totalSteps) {
               const currentDaySlots = slotsByDay[dayKeys[currentStep]];
@@ -112,10 +114,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
 
               if (!hasSelectedToday) {
                   onTriggerConfirm(
-                      "لم تختر أي موعد اليوم",
+                      "لم تختر أي موعد",
                       "هل أنت متأكد أنك غير متاح طوال هذا اليوم؟",
                       () => setCurrentStep(prev => prev + 1),
-                      false // ليس إجراء تدميري، مجرد تنبيه
+                      false 
                   );
               } else {
                   setCurrentStep(prev => prev + 1);
@@ -183,19 +185,32 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                             </div>
                         </div>
                     ) : (
-                        // --- Final Step (Review & Actions - Smart View) ---
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
+                        // --- Final Step (Smart Review with Summary) ---
+                        <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
                             {selected.length > 0 ? (
-                                // الحالة الأولى: قام بتحديد مواعيد
                                 <>
-                                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
-                                        <Send size={40}/>
+                                    <h3 className="text-2xl font-black text-gray-800 mb-2">مراجعة اختياراتك 🧐</h3>
+                                    <p className="text-gray-500 text-sm mb-6">تأكد من المواعيد قبل الإرسال النهائي</p>
+                                    
+                                    {/* Summary List */}
+                                    <div className="bg-gray-50 rounded-2xl p-4 mb-8 text-right max-h-60 overflow-y-auto space-y-3 border border-gray-100">
+                                        {Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
+                                            <div key={dateStr} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                                                <div className="font-bold text-gray-800 text-sm mb-2 flex items-center gap-2">
+                                                    <CalendarDays size={14} className="text-blue-500"/>
+                                                    {formatDate(new Date(dateStr))}
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {hours.sort((a,b)=>a-b).map(h => (
+                                                        <span key={h} className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100">
+                                                            {formatTime(h)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <h3 className="text-2xl font-black text-gray-800 mb-2">أحسنت يا بطل! 👏</h3>
-                                    <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-                                        لقد قمت باختيار <strong className="text-gray-800 mx-1">{selected.length}</strong> ساعة مناسبة لك.<br/>
-                                        هل نعتمد هذه المواعيد؟
-                                    </p>
+
                                     <Button 
                                         onClick={saveChanges} 
                                         style={{ backgroundColor: themeColor }} 
@@ -205,14 +220,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                                     </Button>
                                 </>
                             ) : (
-                                // الحالة الثانية: لم يحدد أي موعد نهائياً
                                 <>
                                     <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
                                         <UserX size={40}/>
                                     </div>
                                     <h3 className="text-2xl font-black text-gray-800 mb-2">لم تجد وقتاً مناسباً؟</h3>
                                     <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-                                        يبدو أن المواعيد المتاحة من المدير لا تناسبك نهائياً.<br/>
+                                        يبدو أن المواعيد المتاحة من المسؤول لا تناسبك نهائياً.<br/>
                                         سيتم تسجيل أنك "مشغول" في هذه الدورة.
                                     </p>
                                     <button 
@@ -227,11 +241,9 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         </div>
                     )}
 
-                    {/* Navigation Buttons (Sticky Bottom) */}
                     {!isScheduleFrozen && !isFinalStep && (
                         <div className="fixed bottom-24 left-0 right-0 z-30 px-6 pointer-events-none">
                             <div className="max-w-lg mx-auto flex justify-between items-center pointer-events-auto">
-                                {/* زر السابق */}
                                 <button 
                                     onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
                                     disabled={currentStep === 0}
@@ -240,7 +252,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                                     <ArrowRight size={24}/>
                                 </button>
 
-                                {/* زر التالي (يستدعي الدالة الذكية) */}
                                 <button 
                                     onClick={handleNextStep}
                                     style={{ backgroundColor: themeColor }}
@@ -254,22 +265,21 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </>
             )}
 
-            {/* Success Screen */}
             {isSuccess && (
                 <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300 text-center">
                     <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 animate-bounce"><CheckCircle2 size={64} className="text-green-500"/></div>
-                    <h2 className="text-3xl font-black text-gray-800 mb-3">تم التسجيل بنجاح!</h2>
+                    <h2 className="text-3xl font-black text-gray-800 mb-3">تم الإرسال بنجاح!</h2>
                     <p className="text-gray-500 mb-10 max-w-xs leading-relaxed mx-auto">
                         {selected.length > 0 ? "شكراً لك. تم تسجيل الأوقات التي تناسبك." : "تم تسجيل أنك غير متاح في هذه المواعيد."}
                     </p>
-                    <Button onClick={() => { setIsSuccess(false); setCurrentStep(0); }} variant="outline" className="w-full h-14 border-2">تعديل الرد</Button>
+                    <Button onClick={() => { setIsSuccess(false); setCurrentStep(0); }} variant="outline" className="w-full h-14 border-2">تعديل المواعيد مرة أخرى</Button>
                 </div>
             )}
         </div>
       );
   }
 
-  // --- Render for ADMIN (Classic Grid View) - زي ما هي بالظبط ---
+  // --- Render for ADMIN (Classic Grid View) ---
   return (
     <div className="pb-40"> 
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
