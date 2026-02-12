@@ -165,13 +165,13 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                             <Pencil size={18} className="mr-2"/> تعديل المواعيد
                         </Button>
                         
-                        {/* زر تسجيل الخروج المحسن */}
-                        <Button 
+                        {/* زر تسجيل الخروج - تم تعديل الألوان ليكون واضحاً */}
+                        <button 
                             onClick={onLogout} 
-                            className="w-full h-14 bg-white border-2 border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm"
+                            className="w-full h-14 bg-white border-2 border-red-500 text-red-600 rounded-xl font-bold flex items-center justify-center hover:bg-red-50 transition-colors shadow-sm"
                         >
                             <LogOut size={18} className="mr-2"/> تسجيل الخروج
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </div>
