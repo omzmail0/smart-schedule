@@ -19,7 +19,7 @@ const LandingPage = ({ onStart, settings }) => {
                 )}
                 <div>
                     <h1 className="font-extrabold text-lg text-gray-800 leading-tight">{settings.teamName}</h1>
-                    <p className="text-[10px] font-bold text-gray-400">أداة التنسيق</p>
+                    <p className="text-[10px] font-bold text-gray-400">نظام تنسيق المواعيد</p>
                 </div>
             </div>
             <button onClick={onStart} className="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
@@ -48,7 +48,7 @@ const LandingPage = ({ onStart, settings }) => {
         </h1>
         
         <p className="text-lg text-gray-500 mb-12 max-w-xl mx-auto leading-relaxed">
-          فكرة الأداة بسيطة: المدير بيطرح المواعيد المتاحة عنده، وأنت بتدخل تختار اللي يناسبك منهم.
+          فكرة الأداة بسيطة: مسؤول الفريق بيطرح المواعيد المتاحة عنده، وأنت بتدخل تختار اللي يناسبك منهم.
         </p>
 
         {/* Workflow Section */}
@@ -63,7 +63,7 @@ const LandingPage = ({ onStart, settings }) => {
                     </div>
                     <h3 className="font-bold text-gray-800 mb-1">1. تحديد المتاح</h3>
                     <p className="text-xs text-gray-500 leading-relaxed">
-                        مسؤول الفريق بيحدد الأول الأوقات اللي هو فاضي فيها خلال الأسبوع.
+                        مسؤول الفريق بيحدد الأول الأوقات اللي هو فاضي فيها.
                     </p>
                 </div>
             </div>

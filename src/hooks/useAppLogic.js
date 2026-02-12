@@ -10,7 +10,7 @@ export const useAppLogic = () => {
   
   // ✅ تم استرجاع اللون الكحلي الأصلي
   const [settings, setSettings] = useState({ 
-      teamName: 'ميديا صناع الحياة - المنشأة', 
+      teamName: 'نظام تنسيق المواعيد', 
       primaryColor: '#0e395c', // اللون الأصلي
       logo: null 
   });
@@ -46,7 +46,7 @@ export const useAppLogic = () => {
         const adminSnap = await getDoc(adminRef);
         if (!adminSnap.exists()) {
             await setDoc(adminRef, {
-                id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
+                id: "admin", name: "مسؤول الملف", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
             });
         }
     };
