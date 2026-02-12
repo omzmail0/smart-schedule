@@ -1,4 +1,3 @@
-// src/hooks/useAppLogic.js
 import { useState, useEffect } from 'react';
 import { db } from '../utils/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
@@ -6,9 +5,11 @@ import { generateId, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('login');
-  const [activeTab, setActiveTab] = useState('home');
   
+  // التغيير هنا: الحالة الافتراضية 'landing'
+  const [view, setView] = useState('landing'); 
+  
+  const [activeTab, setActiveTab] = useState('home');
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
@@ -16,13 +17,11 @@ export const useAppLogic = () => {
   const [settings, setSettings] = useState({ teamName: 'مجدول الفريق', primaryColor: '#0e395c', logo: null });
   const [analysisResult, setAnalysisResult] = useState(null);
   
-  // States for Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   const [inspectMember, setInspectMember] = useState(null);
 
-  // States for UI
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
@@ -31,7 +30,6 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // --- Effects ---
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) setSettings(docSnap.data()); 
@@ -56,7 +54,7 @@ export const useAppLogic = () => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
         setUser(JSON.parse(savedUser));
-        setView('app');
+        setView('app'); // لو مسجل دخول، وديه للتطبيق علطول
     }
   }, []);
 
@@ -76,7 +74,9 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  // --- Actions ---
+  // دالة الانتقال لصفحة تسجيل الدخول
+  const onStart = () => setView('login');
+
   const handleLogin = async (loginData) => {
     if (!loginData.username || !loginData.password) return showToast("يرجى إكمال جميع البيانات", "error");
     try {
@@ -98,7 +98,7 @@ export const useAppLogic = () => {
   const handleLogout = () => {
       localStorage.removeItem('smartScheduleUser');
       setUser(null);
-      setView('login');
+      setView('landing'); // لما يخرج يرجع لصفحة الهبوط مش الدخول
       setActiveTab('home');
       setAdminSlots([]);
   };
@@ -179,8 +179,10 @@ export const useAppLogic = () => {
     isModalOpen, setIsModalOpen, editingMemberId, setEditingMemberId,
     memberForm, setMemberForm, inspectMember, setInspectMember,
     toast, setToast, confirmData, setConfirmData,
-    showToast, triggerConfirm,
+    showToast,QX: triggerConfirm, // تأكد من الاسم هنا يكون triggerConfirm
+    triggerConfirm, // الاسم الصحيح للدالة
     handleLogin, handleLogout, handleSaveMember, deleteMember, saveSettings,
-    analyzeSchedule, bookMeeting, cancelMeeting, resetAllAvailability
+    analyzeSchedule, bookMeeting, cancelMeeting, resetAllAvailability,
+    onStart // الدالة الجديدة
   };
 };

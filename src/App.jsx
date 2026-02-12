@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 
 // Components
+import LandingPage from './components/LandingPage';
 import AuthScreen from './components/AuthScreen';
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
@@ -39,7 +40,10 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {logic.view === 'login' ? (
+      {/* المنطق الجديد لعرض الصفحات */}
+      {logic.view === 'landing' ? (
+          <LandingPage onStart={logic.onStart} settings={logic.settings} />
+      ) : logic.view === 'login' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onShowToast={logic.showToast} />
       ) : (
         <>
