@@ -15,7 +15,33 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* --- أنيميشن شاشة التحميل --- */
+
+/* حركة شريط التحميل (يروح وييجي) */
+@keyframes loading-bar {
+  0% { transform: translateX(100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s infinite ease-in-out;
+  width: 50%; /* طول الشريط المتحرك */
+  height: 100%;
+}
+
+/* حركة النبض البطيئة للوجو */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s infinite;
 }
