@@ -3,7 +3,8 @@ import { Info, CheckCircle2 } from 'lucide-react';
 import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
-const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfirm }) => {
+// 1. استقبلنا onLogout هنا
+const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfirm, onLogout }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
         {user.role !== 'admin' && (
@@ -25,7 +26,7 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: settings.primaryColor }}><span className="font-bold text-xl">{formatTime(h).split(':')[0]}</span></div>
                         <div><div className="font-bold text-gray-800 text-lg">اجتماع</div><div className="text-sm font-medium text-gray-400">{formatDate(new Date(y, m-1, d))}</div></div>
                      </div>
-                     {user.role === 'admin' && <button onClick={() => triggerConfirm("إلغاء الاجتماع", "تأكيد الإلغاء؟", async () => { /* Logic passed from parent ideally, but simple enough here */ }, true)} className="bg-red-50 text-red-500 p-2 rounded-xl text-xs font-bold">إلغاء</button>}
+                     {user.role === 'admin' && <button onClick={() => triggerConfirm("إلغاء الاجتماع", "تأكيد الإلغاء؟", async () => { /* Logic is in app */ }, true)} className="bg-red-50 text-red-500 p-2 rounded-xl text-xs font-bold">إلغاء</button>}
                    </div>
                  )
                })}
@@ -42,6 +43,7 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
                 bookedSlots={meetings} 
                 onShowToast={showToast} 
                 onTriggerConfirm={triggerConfirm}
+                onLogout={onLogout} // 2. مررناه هنا للجدول
            />
         </div>
     </div>

@@ -39,7 +39,6 @@ export default function App() {
       />
 
       {logic.view === 'landing' ? (
-          // ✅ التعديل هنا: مررنا adminSlots
           <LandingPage onStart={logic.onStart} settings={logic.settings} adminSlots={logic.adminSlots} />
       ) : logic.view === 'login' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onBack={logic.onBackToLanding} onShowToast={logic.showToast} />
@@ -48,7 +47,9 @@ export default function App() {
           <Header user={logic.user} settings={logic.settings} onLogout={logic.handleLogout} />
           
           <div className="p-5 max-w-lg mx-auto pb-24">
-            {logic.activeTab === 'home' && <HomeTab user={logic.user} meetings={logic.meetings} adminSlots={logic.adminSlots} settings={logic.settings} showToast={logic.showToast} triggerConfirm={logic.triggerConfirm} />}
+            {/* ✅ التأكد من تمرير onLogout هنا */}
+            {logic.activeTab === 'home' && <HomeTab user={logic.user} meetings={logic.meetings} adminSlots={logic.adminSlots} settings={logic.settings} showToast={logic.showToast} triggerConfirm={logic.triggerConfirm} onLogout={logic.handleLogout} />}
+            
             {logic.activeTab === 'members' && <MembersTab user={logic.user} members={logic.members} availability={logic.availability} openAddModal={openAddModal} openEditModal={openEditModal} deleteMember={logic.deleteMember} setInspectMember={logic.setInspectMember} />}
             {logic.activeTab === 'settings' && logic.user.role === 'admin' && <SettingsTab settings={logic.settings} setSettings={logic.setSettings} saveSettings={logic.saveSettings} resetAllAvailability={logic.resetAllAvailability} />}
             {logic.activeTab === 'analysis' && <AnalysisTab settings={logic.settings} analyzeSchedule={logic.analyzeSchedule} analysisResult={logic.analysisResult} bookMeeting={logic.bookMeeting} />}

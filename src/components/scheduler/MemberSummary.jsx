@@ -4,7 +4,6 @@ import { formatDate, formatTime } from '../../utils/helpers';
 import Button from '../Button';
 
 const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
-  // تجميع المواعيد للعرض
   const groupedSelections = selected.reduce((acc, slot) => {
     const [y, m, d, h] = slot.split('-'); 
     const dateKey = `${y}-${m}-${d}`;
@@ -16,6 +15,7 @@ const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
   return (
     <div className="pb-40 animate-in fade-in zoom-in-95 duration-300">
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 text-center">
+            {/* ... (الجزء العلوي كما هو) ... */}
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${isBusy ? 'bg-red-50 shadow-red-100' : 'bg-green-50 shadow-green-100'}`}>
                 {isBusy ? <UserX size={48} className="text-red-500"/> : <CheckCircle2 size={48} className="text-green-500"/>}
             </div>
@@ -56,6 +56,7 @@ const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
                     <Pencil size={18} className="mr-2"/> تعديل المواعيد
                 </Button>
                 
+                {/* زر الخروج - تأكد أن onClick مربوط بـ onLogout */}
                 <button 
                     onClick={onLogout} 
                     className="w-full h-14 bg-white border-2 border-red-500 text-red-600 rounded-xl font-bold flex items-center justify-center hover:bg-red-50 transition-colors shadow-sm"
