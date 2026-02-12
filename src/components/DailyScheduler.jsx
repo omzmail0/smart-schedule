@@ -10,9 +10,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   
-  // هل المستخدم قام بتسليم رده بالفعل؟ (سواء مواعيد أو مشغول)
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isBusy, setIsBusy] = useState(false); // هل رد بأنه مشغول؟
+  const [isBusy, setIsBusy] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0); 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -41,7 +40,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
            
            if (!hasUnsavedChanges) {
                setSelected(slots);
-               // تحديد حالة التسليم بناءً على البيانات المحفوظة
                if (data.status === 'active' || data.status === 'busy') {
                    setIsSubmitted(true);
                    setIsBusy(data.status === 'busy');
@@ -86,7 +84,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       await setDoc(doc(db, "availability", userId), { slots: selected, status: status, updatedAt: serverTimestamp() }, { merge: true });
       
       setHasUnsavedChanges(false);
-      setIsSubmitted(true); // ننتقل لوضع "تم التسليم"
+      setIsSubmitted(true);
       setIsBusy(status === 'busy');
       
       if (onSave) onSave();
@@ -107,10 +105,9 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         } catch(e) { onShowToast(e.message, "error"); }
   };
 
-  // دالة للدخول في وضع التعديل (إلغاء وضع التسليم)
   const startEditing = () => {
       setIsSubmitted(false);
-      setCurrentStep(0); // البدء من أول يوم في الـ Wizard
+      setCurrentStep(0);
   };
 
   const groupedSelections = selected.reduce((acc, slot) => {
@@ -118,9 +115,8 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(h); return acc;
   }, {});
 
-  // --- Render for MEMBER (Wizard OR Summary View) ---
+  // --- Render for MEMBER ---
   if (role !== 'admin') {
-      // 1. لو المستخدم "مسلم الرد" -> اعرض صفحة الملخص الثابتة
       if (isSubmitted && !isScheduleFrozen) {
           return (
             <div className="pb-40 animate-in fade-in zoom-in-95 duration-300">
@@ -140,7 +136,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         }
                     </p>
                     
-                    {/* عرض المواعيد لو مش مشغول */}
                     {!isBusy && selected.length > 0 && (
                         <div className="bg-gray-50 rounded-2xl p-4 mb-8 text-right max-h-80 overflow-y-auto space-y-3 border border-gray-100">
                             {Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
@@ -161,8 +156,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         </div>
                     )}
 
-                    {/* أزرار التحكم */}
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         <Button 
                             onClick={startEditing} 
                             style={{ backgroundColor: themeColor }}
@@ -170,9 +164,11 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         >
                             <Pencil size={18} className="mr-2"/> تعديل المواعيد
                         </Button>
+                        
+                        {/* زر تسجيل الخروج المحسن */}
                         <Button 
                             onClick={onLogout} 
-                            className="w-full h-14 bg-red-50 text-red-600 hover:bg-red-100 border-none shadow-none"
+                            className="w-full h-14 bg-white border-2 border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm"
                         >
                             <LogOut size={18} className="mr-2"/> تسجيل الخروج
                         </Button>
@@ -182,7 +178,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
           );
       }
 
-      // 2. لو المستخدم "لسه بيختار" -> اعرض الـ Wizard
       const sortedAdminSlots = [...adminSlots].sort((a, b) => {
           const dateA = new Date(a.split('-').slice(0,3).join('-') + ' ' + a.split('-')[3] + ':00');
           const dateB = new Date(b.split('-').slice(0,3).join('-') + ' ' + b.split('-')[3] + ':00');
@@ -235,7 +230,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </div>
             ) : (
                 <>
-                    {/* Progress Bar */}
                     <div className="mb-6 px-2">
                         <div className="flex justify-between text-xs font-bold text-gray-400 mb-2">
                             <span>{isFinalStep ? "المراجعة النهائية" : `يوم ${currentStep + 1} من ${totalSteps}`}</span>
@@ -250,7 +244,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                     </div>
 
                     {!isFinalStep ? (
-                        // --- Day View ---
                         <div className="animate-in slide-in-from-right-4 duration-300" key={currentStep}>
                             <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 min-h-[300px]">
                                 <div className="text-center mb-6">
@@ -281,7 +274,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                             </div>
                         </div>
                     ) : (
-                        // --- Final Step (Review Before Submit) ---
                         <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
                             {selected.length > 0 ? (
                                 <>
@@ -339,7 +331,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                         </div>
                     )}
 
-                    {/* Navigation Buttons (Only shown during selection) */}
                     {!isScheduleFrozen && !isFinalStep && (
                         <div className="fixed bottom-24 left-0 right-0 z-30 px-6 pointer-events-none">
                             <div className="max-w-lg mx-auto flex justify-between items-center pointer-events-auto">
@@ -358,7 +349,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       );
   }
 
-  // --- Render for ADMIN (Grid View) - As Is ---
+  // --- Render for ADMIN (Grid View) ---
   return (
     <div className="pb-40"> 
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
