@@ -69,11 +69,21 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       return <AdminScheduler selected={selected} onToggleSlot={toggleSlot} onSave={saveChanges} hasChanges={hasUnsavedChanges} themeColor={themeColor} bookedSlots={bookedSlots} />;
   }
 
-  if (isSubmitted && bookedSlots.length === 0) { // لو سلم الرد ومفيش اجتماع مؤكد، اعرض الملخص
+  if (isSubmitted && bookedSlots.length === 0) { 
       return <MemberSummary selected={selected} isBusy={isBusy} themeColor={themeColor} onEdit={() => setIsSubmitted(false)} onLogout={onLogout} />;
   }
 
-  return <MemberWizard adminSlots={adminSlots} bookedSlots={bookedSlots} selected={selected} onToggleSlot={toggleSlot} onSave={saveChanges} onMarkBusy={markBusy} themeColor={themeColor} onTriggerConfirm={onTriggerConfirm} />;
+  return <MemberWizard 
+      adminSlots={adminSlots} 
+      bookedSlots={bookedSlots} 
+      selected={selected} 
+      onToggleSlot={toggleSlot} 
+      onSave={saveChanges} 
+      onMarkBusy={markBusy} 
+      themeColor={themeColor} 
+      onTriggerConfirm={onTriggerConfirm} 
+      setSelected={setSelected} // ✅ تم تمرير دالة التحديث (الإضافة الوحيدة)
+  />;
 };
 
 export default DailyScheduler;

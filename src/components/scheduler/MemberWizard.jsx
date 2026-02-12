@@ -1,12 +1,35 @@
-import React, { useState } from 'react';
-import { Calendar, Lock, CheckCircle2, UserX, ArrowRight, ArrowLeft, Send, Check, ThumbsUp, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Lock, CheckCircle2, UserX, ArrowRight, ArrowLeft, Send, Check, ThumbsUp } from 'lucide-react';
 import { formatDate, formatTime, isPastTime } from '../../utils/helpers';
 import Button from '../Button';
 
-const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave, onMarkBusy, themeColor, onTriggerConfirm }) => {
+const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave, onMarkBusy, themeColor, onTriggerConfirm, setSelected }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const isScheduleFrozen = bookedSlots.length > 0;
 
+  // ✅ التعديل الجديد: تنظيف تلقائي للمواعيد القديمة عند الفتح
+  useEffect(() => {
+    // 1. فلترة المواعيد المختارة: شيل أي ميعاد عدى وقته
+    const validSelection = selected.filter(slot => {
+        const [y, m, d, h] = slot.split('-');
+        return !isPastTime(`${y}-${m}-${d}`, h);
+    });
+
+    // 2. لو فيه مواعيد اتشالت (يعني العدد قل)، حدث الحالة فوراً
+    if (validSelection.length !== selected.length) {
+        // ملحوظة: لازم تمرر setSelected كـ prop من الأب (DailyScheduler)
+        if(onToggleSlot) { 
+            // حل بديل ذكي: بنستخدم دالة onToggleSlot عشان نلغي القديم
+            // لكن الأفضل هو تمرير setSelected مباشرة.
+            // هنا هنفترض إننا هنعدل DailyScheduler عشان يمرر setSelected
+             if(typeof setSelected === 'function') {
+                 setSelected(validSelection);
+             }
+        }
+    }
+  }, []); // يشتغل مرة واحدة عند التحميل
+
+  // 1. Prepare Data
   const sortedAdminSlots = [...adminSlots].sort((a, b) => {
       const dateA = new Date(a.split('-').slice(0,3).join('-') + ' ' + a.split('-')[3] + ':00');
       const dateB = new Date(b.split('-').slice(0,3).join('-') + ' ' + b.split('-')[3] + ':00');
@@ -31,10 +54,15 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
       if (currentStep < totalSteps) {
           const currentDaySlots = slotsByDay[dayKeys[currentStep]];
           const hasSelectedToday = currentDaySlots.some(slot => selected.includes(slot));
+
           if (!hasSelectedToday) {
               onTriggerConfirm("تنبيه", "لم تختر أي موعد اليوم، هل أنت متأكد؟", () => setCurrentStep(prev => prev + 1), false);
-          } else { setCurrentStep(prev => prev + 1); }
-      } else { setCurrentStep(prev => prev + 1); }
+          } else {
+              setCurrentStep(prev => prev + 1);
+          }
+      } else {
+          setCurrentStep(prev => prev + 1);
+      }
   };
 
   if (dayKeys.length === 0) {
@@ -90,7 +118,6 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
             <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
                 {selected.length > 0 ? (
                     <>
-                        {/* استبدال Send بـ ThumbsUp */}
                         <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><ThumbsUp size={40}/></div>
                         <h3 className="text-2xl font-black text-gray-800 mb-2">أحسنت يا بطل!</h3>
                         <p className="text-gray-500 text-sm mb-6">لقد اخترت {selected.length} ساعة. تأكد قبل الإرسال.</p>
