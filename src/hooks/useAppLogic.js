@@ -4,7 +4,6 @@ import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query,
 import { generateId, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
-  // 1️⃣ حالة التحميل (بدأنا بـ true)
   const [isLoading, setIsLoading] = useState(true);
   
   const [user, setUser] = useState(null);
@@ -12,7 +11,7 @@ export const useAppLogic = () => {
   const [activeTab, setActiveTab] = useState('home');
   
   const [settings, setSettings] = useState({ 
-      teamName: '...', // شلنا الاسم الافتراضي عشان ميبانش لحظياً
+      teamName: '...', 
       primaryColor: '#0e395c', 
       logo: null 
   });
@@ -35,27 +34,25 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // 2️⃣ تعديل جلب الإعدادات ليوقف التحميل عند الوصول
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) {
             setSettings(docSnap.data());
         } else {
-            // لو مفيش إعدادات في الداتا بيز، حط الافتراضي
             setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null });
         }
-        // ✅ وقفنا التحميل لأن البيانات وصلت
         setIsLoading(false); 
     });
     return () => unsubSettings();
   }, []);
 
+  // ✅ التصحيح هنا: return الدالة مباشرة
   useEffect(() => {
-    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
+    const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
         else setAdminSlots([]);
     });
-    return () => unsubAdminAvail();
+    return () => unsub(); // استدعاء دالة الإلغاء بشكل صحيح
   }, []);
 
   useEffect(() => {
@@ -88,7 +85,7 @@ export const useAppLogic = () => {
        snap.forEach(d => { data[d.id] = d.data(); });
        setAvailability(data);
     });
-    return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
+    return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
   const onStart = () => setView('login');
@@ -174,7 +171,7 @@ export const useAppLogic = () => {
   };
 
   return {
-    isLoading, // 3️⃣ تصدير حالة التحميل
+    isLoading,
     user, setUser, view, activeTab, setActiveTab,
     members, meetings, adminSlots, availability, settings, setSettings, analysisResult,
     isModalOpen, setIsModalOpen, editingMemberId, setEditingMemberId,
