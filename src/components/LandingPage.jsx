@@ -1,80 +1,110 @@
 import React from 'react';
-import { Calendar, Users, Zap, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, Users, Lock, ArrowLeft, ShieldAlert, Camera } from 'lucide-react';
 import Button from './Button';
 
 const LandingPage = ({ onStart, settings }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white font-sans text-gray-800 flex flex-col" dir="rtl">
+    <div className="min-h-screen bg-[#FDFDFD] font-sans text-gray-800 flex flex-col" dir="rtl">
       
-      {/* Navbar */}
+      {/* Navbar Simple */}
       <nav className="p-6 flex justify-between items-center max-w-6xl mx-auto w-full animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="flex items-center gap-3">
             {settings.logo ? (
-                <img src={settings.logo} className="w-12 h-12 rounded-xl object-cover shadow-sm border border-white"/>
+                <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover shadow-sm"/>
             ) : (
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: settings.primaryColor }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: settings.primaryColor }}>
                     {settings.teamName[0]}
                 </div>
             )}
-            <div>
-                <h1 className="font-extrabold text-lg tracking-tight text-gray-900">{settings.teamName}</h1>
-                <p className="text-xs font-bold text-gray-400">نظام تنسيق المواعيد</p>
-            </div>
+            <h1 className="font-extrabold text-xl tracking-tight text-gray-800">{settings.teamName}</h1>
         </div>
-        <button onClick={onStart} className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all flex items-center gap-2 shadow-sm">
-            تسجيل الدخول <ArrowLeft size={16}/>
+        <button onClick={onStart} className="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
+            دخول الأعضاء <ArrowLeft size={16}/>
         </button>
       </nav>
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto px-6 py-12 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
         
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-8 border border-blue-100">
-            <Zap size={14} className="fill-blue-500 text-blue-500"/>
-            المنصة الرسمية للفريق
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-xs font-bold mb-8 border border-gray-200">
+            <Camera size={14} />
+            منصة تيم الميديا - صناع الحياة
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-black mb-6 leading-[1.1] text-gray-900">
-          نسق اجتماعات <br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${settings.primaryColor}, #2563eb)` }}>
-             {settings.teamName}
+        <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-gray-900">
+          نسّق مواعيد الفريق <br/>
+          <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${settings.primaryColor}, #1e293b)` }}>
+            بكل سهولة واحترافية
           </span>
         </h1>
         
-        <p className="text-lg md:text-xl text-gray-500 mb-12 max-w-2xl mx-auto leading-relaxed font-medium">
-          هذا الموقع مخصص لتسهيل التواصل بين أعضاء الفريق. حدد أوقات فراغك، واترك النظام يختار الموعد الأنسب للجميع بذكاء.
+        <p className="text-lg text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
+          تخلص من عناء الرسائل الطويلة لتحديد موعد اجتماع. منصة <strong className="text-gray-800">{settings.teamName}</strong> تتيح لكل عضو تحديد أوقاته المناسبة، والنظام يختار الوقت المثالي للجميع.
         </p>
 
-        <Button 
-            onClick={onStart} 
-            style={{ backgroundColor: settings.primaryColor }} 
-            className="w-full sm:w-auto h-16 px-10 text-xl text-white shadow-xl rounded-2xl hover:scale-105 transition-transform"
-        >
-            ابدأ الآن <ArrowLeft size={24}/>
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 w-full sm:w-auto">
+            <Button 
+                onClick={onStart} 
+                style={{ backgroundColor: settings.primaryColor }} 
+                className="w-full sm:w-auto h-14 px-8 text-lg text-white shadow-xl rounded-2xl hover:opacity-90 transition-opacity"
+            >
+                تسجيل الدخول <ArrowLeft size={20}/>
+            </Button>
+        </div>
 
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 text-right w-full mt-20">
-            <FeatureCard icon={<Calendar/>} title="جدولة مرنة" desc="حدد الساعات المتاحة لك خلال الأسبوع بكل سهولة." color={settings.primaryColor} />
-            <FeatureCard icon={<Users/>} title="التوافق الجماعي" desc="النظام يحلل جداول الجميع ويقترح الوقت الذهبي." color={settings.primaryColor} />
-            <FeatureCard icon={<Zap/>} title="سهولة الاستخدام" desc="واجهة بسيطة ومباشرة تركز على إنجاز المهمة." color={settings.primaryColor} />
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-6 text-right w-full">
+            <FeatureCard 
+                icon={<Calendar className="text-blue-600"/>}
+                title="جدولة مرنة"
+                desc="حدد الساعات التي تكون فيها متاحاً خلال الأسبوع بضغطة زر."
+            />
+            <FeatureCard 
+                icon={<Users className="text-purple-600"/>}
+                title="تحليل ذكي"
+                desc="النظام يجمع البيانات ويقترح أفضل وقت يناسب أكبر عدد من الأعضاء."
+            />
+            <FeatureCard 
+                icon={<Lock className="text-green-600"/>}
+                title="خصوصية وأمان"
+                desc="بياناتك محفوظة، ولا يمكن لأحد تعديل جدولك غيرك أنت والمسؤول."
+            />
+        </div>
+
+        {/* Admin Note Section - رجعنا الجزء المهم */}
+        <div className="mt-16 bg-orange-50 border border-orange-100 rounded-3xl p-8 text-center max-w-2xl mx-auto relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-10 opacity-5"><ShieldAlert size={100} className="text-orange-600"/></div>
+            <div className="relative z-10 flex flex-col items-center">
+                <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
+                    <ShieldAlert size={28}/>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">كيف أحصل على حساب؟</h3>
+                <p className="text-gray-600 text-sm mb-4 leading-relaxed max-w-lg">
+                    هذا النظام مغلق لأعضاء الفريق فقط. لا يمكنك إنشاء حساب بنفسك.<br/>
+                    <strong>مسؤول الميديا</strong> هو الوحيد الذي يمتلك صلاحية إنشاء الحسابات وتسليم بيانات الدخول (اسم المستخدم وكلمة المرور) لكل عضو.
+                </p>
+                <div className="inline-flex items-center gap-2 text-xs font-bold text-orange-800 bg-orange-100/50 px-4 py-2 rounded-lg">
+                    معك البيانات؟ اضغط على زر "تسجيل الدخول" بالأعلى
+                </div>
+            </div>
         </div>
 
       </main>
 
-      <footer className="text-center py-8 text-gray-400 text-xs font-medium border-t border-gray-100 mt-10">
-        &copy; {new Date().getFullYear()} {settings.teamName} - جميع الحقوق محفوظة
+      {/* Simple Footer */}
+      <footer className="text-center py-8 text-gray-400 text-sm border-t border-gray-100 mt-12 bg-white">
+        &copy; {new Date().getFullYear()} {settings.teamName}. جميع الحقوق محفوظة.
       </footer>
     </div>
   );
 };
 
-const FeatureCard = ({ icon, title, desc, color }) => (
-    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-1">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-white" style={{ backgroundColor: color }}>
-            {React.cloneElement(icon, { size: 24 })}
+const FeatureCard = ({ icon, title, desc }) => (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+            {icon}
         </div>
-        <h3 className="font-bold text-gray-800 mb-2 text-lg">{title}</h3>
+        <h3 className="font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
     </div>
 );

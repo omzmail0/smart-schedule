@@ -5,13 +5,13 @@ import { generateId, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('landing'); // نبدأ بصفحة الهبوط
+  const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
   
-  // الإعدادات الافتراضية (تتغير تلقائياً عند جلب البيانات من فايربيز)
+  // ✅ تم استرجاع اللون الكحلي الأصلي
   const [settings, setSettings] = useState({ 
-      teamName: 'ميديا المنشاه', 
-      primaryColor: '#0ea5e9', // الأزرق السماوي
+      teamName: 'ميديا صناع الحياة - المنشأة', 
+      primaryColor: '#0e395c', // اللون الأصلي
       logo: null 
   });
 
@@ -21,13 +21,10 @@ export const useAppLogic = () => {
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
   
-  // حالات المودال (Modals)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
   const [inspectMember, setInspectMember] = useState(null);
-
-  // التنبيهات
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
@@ -36,9 +33,7 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // --- جلب البيانات ---
   useEffect(() => {
-    // جلب الإعدادات (اسم التيم واللون)
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) setSettings(docSnap.data()); 
     });
@@ -46,13 +41,12 @@ export const useAppLogic = () => {
   }, []);
 
   useEffect(() => {
-    // التأكد من وجود أدمن
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
         const adminSnap = await getDoc(adminRef);
         if (!adminSnap.exists()) {
             await setDoc(adminRef, {
-                id: "admin", name: "مسؤول الفريق", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
+                id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
             });
         }
     };
@@ -63,7 +57,7 @@ export const useAppLogic = () => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
         setUser(JSON.parse(savedUser));
-        setView('app'); // لو مسجل دخول، يدخل للتطبيق علطول
+        setView('app');
     }
   }, []);
 
@@ -83,12 +77,11 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
-  // --- الوظائف الأساسية ---
   const onStart = () => setView('login');
   const onBackToLanding = () => setView('landing');
 
   const handleLogin = async (loginData) => {
-    if (!loginData.username || !loginData.password) return showToast("اكتب البيانات كاملة يا بطل", "error");
+    if (!loginData.username || !loginData.password) return showToast("يرجى إكمال جميع البيانات", "error");
     try {
         const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
         const snap = await getDocs(q);
@@ -98,11 +91,11 @@ export const useAppLogic = () => {
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             setView('app');
             setActiveTab('home');
-            showToast(`منور يا ${userData.name.split(' ')[0]} ❤️`);
+            showToast(`مرحباً بك يا ${userData.name.split(' ')[0]}`);
         } else {
-            showToast("البيانات غلط، راجع المسؤول", "error");
+            showToast("بيانات الدخول غير صحيحة", "error");
         }
-    } catch (error) { showToast("في مشكلة في النت", "error"); }
+    } catch (error) { showToast("حدث خطأ في الاتصال", "error"); }
   };
 
   const handleLogout = () => {
@@ -113,7 +106,6 @@ export const useAppLogic = () => {
       setAdminSlots([]);
   };
 
-  // باقي وظائف الإدارة (الحفظ، الحذف، الحجز، التصفير)
   const handleSaveMember = async () => {
     if (!memberForm.name || !memberForm.username || !memberForm.password) return showToast("البيانات ناقصة", "error");
     try {
@@ -131,21 +123,15 @@ export const useAppLogic = () => {
   };
 
   const deleteMember = (memberId) => { 
-      triggerConfirm("حذف العضو", "متأكد إنك عايز تحذفه نهائي؟", async () => {
-        await deleteDoc(doc(db, "users", memberId)); 
-        await deleteDoc(doc(db, "availability", memberId));
-        showToast("تم الحذف");
+      triggerConfirm("حذف العضو", "هل أنت متأكد من الحذف؟", async () => {
+        await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); showToast("تم الحذف");
       }, true);
   };
 
-  const saveSettings = async (newSettings) => { 
-      await setDoc(doc(db, "settings", "main"), newSettings); 
-      setSettings(newSettings);
-      showToast("تم تحديث هوية الفريق"); 
-  };
+  const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم التحديث"); };
 
   const analyzeSchedule = () => {
-    if (adminSlots.length === 0) return showToast("لازم تحدد المواعيد المتاحة الأول", "error");
+    if (adminSlots.length === 0) return showToast("يرجى تحديد الأوقات المتاحة أولاً", "error");
     const bookedSlotIds = meetings.map(m => m.slot);
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
@@ -159,24 +145,18 @@ export const useAppLogic = () => {
   };
 
   const bookMeeting = (slot) => { 
-      triggerConfirm("اعتماد الموعد", "هل نعتمد الميعاد ده رسمياً؟", async () => {
-        const id = generateId(); 
-        await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); 
-        setAnalysisResult(null);
-        showToast("تم اعتماد الاجتماع");
+      triggerConfirm("تأكيد الحجز", "هل تريد اعتماد هذا الموعد؟", async () => {
+        const id = generateId(); await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); setAnalysisResult(null); showToast("تم اعتماد الموعد");
       });
   };
 
   const cancelMeeting = (meetingId) => { 
-      triggerConfirm("إلغاء الاجتماع", "أكيد عايز تلغي؟", async () => { await deleteDoc(doc(db, "meetings", meetingId)); showToast("تم الإلغاء"); }, true);
+      triggerConfirm("إلغاء الاجتماع", "تأكيد الإلغاء؟", async () => { await deleteDoc(doc(db, "meetings", meetingId)); showToast("تم الإلغاء"); }, true);
   };
 
   const resetAllAvailability = () => { 
-      triggerConfirm("تصفير الجداول", "ده هيمسح كل جداول الأعضاء. متأكد؟", async () => {
-        const snap = await getDocs(collection(db, "availability")); 
-        const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id)));
-        await Promise.all(deletePromises);
-        showToast("تم التصفير بنجاح");
+      triggerConfirm("تصفير الجداول", "سيتم مسح كل الجداول. متأكد؟", async () => {
+        const snap = await getDocs(collection(db, "availability")); const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id))); await Promise.all(deletePromises); showToast("تم التصفير");
       }, true);
   };
 
