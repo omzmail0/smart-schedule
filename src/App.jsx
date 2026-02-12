@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 
 // Components
+import SplashScreen from './components/common/SplashScreen'; // 1. استيراد شاشة التحميل
 import LandingPage from './components/LandingPage';
 import AuthScreen from './components/AuthScreen';
 import BottomNav from './components/BottomNav';
@@ -20,6 +21,11 @@ import InspectModal from './components/modals/InspectModal';
 
 export default function App() {
   const logic = useAppLogic();
+
+  // 2. شرط التحميل: لو بيحمل، اعرض السبلاش سكرين بس
+  if (logic.isLoading) {
+      return <SplashScreen />;
+  }
 
   const openAddModal = () => { logic.setMemberForm({ name: '', username: '', password: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
   const openEditModal = (member) => { logic.setMemberForm({ name: member.name, username: member.username, password: member.password }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
@@ -47,9 +53,7 @@ export default function App() {
           <Header user={logic.user} settings={logic.settings} onLogout={logic.handleLogout} />
           
           <div className="p-5 max-w-lg mx-auto pb-24">
-            {/* ✅ التأكد من تمرير onLogout هنا */}
             {logic.activeTab === 'home' && <HomeTab user={logic.user} meetings={logic.meetings} adminSlots={logic.adminSlots} settings={logic.settings} showToast={logic.showToast} triggerConfirm={logic.triggerConfirm} onLogout={logic.handleLogout} />}
-            
             {logic.activeTab === 'members' && <MembersTab user={logic.user} members={logic.members} availability={logic.availability} openAddModal={openAddModal} openEditModal={openEditModal} deleteMember={logic.deleteMember} setInspectMember={logic.setInspectMember} />}
             {logic.activeTab === 'settings' && logic.user.role === 'admin' && <SettingsTab settings={logic.settings} setSettings={logic.setSettings} saveSettings={logic.saveSettings} resetAllAvailability={logic.resetAllAvailability} />}
             {logic.activeTab === 'analysis' && <AnalysisTab settings={logic.settings} analyzeSchedule={logic.analyzeSchedule} analysisResult={logic.analysisResult} bookMeeting={logic.bookMeeting} />}

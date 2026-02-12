@@ -4,19 +4,22 @@ import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query,
 import { generateId, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
+  // 1️⃣ حالة التحميل (بدأنا بـ true)
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
   
   const [settings, setSettings] = useState({ 
-      teamName: 'ميديا صناع الحياة - المنشأة', 
+      teamName: '...', // شلنا الاسم الافتراضي عشان ميبانش لحظياً
       primaryColor: '#0e395c', 
       logo: null 
   });
 
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
-  const [adminSlots, setAdminSlots] = useState([]); // دي اللي فيها المشكلة
+  const [adminSlots, setAdminSlots] = useState([]);
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
   
@@ -32,15 +35,21 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // 1. جلب الإعدادات (يعمل دائماً)
+  // 2️⃣ تعديل جلب الإعدادات ليوقف التحميل عند الوصول
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
-        if (docSnap.exists()) setSettings(docSnap.data()); 
+        if (docSnap.exists()) {
+            setSettings(docSnap.data());
+        } else {
+            // لو مفيش إعدادات في الداتا بيز، حط الافتراضي
+            setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null });
+        }
+        // ✅ وقفنا التحميل لأن البيانات وصلت
+        setIsLoading(false); 
     });
     return () => unsubSettings();
   }, []);
 
-  // 2. ✅ (تصحيح) جلب مواعيد المدير (يعمل دائماً حتى لو مفيش تسجيل دخول)
   useEffect(() => {
     const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
@@ -49,7 +58,6 @@ export const useAppLogic = () => {
     return () => unsubAdminAvail();
   }, []);
 
-  // 3. إنشاء حساب الأدمن الافتراضي لو مش موجود
   useEffect(() => {
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
@@ -63,7 +71,6 @@ export const useAppLogic = () => {
     initAdmin();
   }, []);
 
-  // 4. التحقق من تسجيل الدخول السابق
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
@@ -72,21 +79,16 @@ export const useAppLogic = () => {
     }
   }, []);
 
-  // 5. جلب بيانات الأعضاء والاجتماعات (فقط عند تسجيل الدخول)
   useEffect(() => {
     if (!user) return;
-    
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
-    
-    // جلب جداول باقي الأعضاء
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
        setAvailability(data);
     });
-
-    return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
+    return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
   }, [user]);
 
   const onStart = () => setView('login');
@@ -115,7 +117,6 @@ export const useAppLogic = () => {
       setUser(null);
       setView('landing'); 
       setActiveTab('home');
-      // ملحوظة: مبقناش نفضي adminSlots هنا عشان تفضل ظاهرة في صفحة البداية
   };
 
   const handleSaveMember = async () => {
@@ -173,6 +174,7 @@ export const useAppLogic = () => {
   };
 
   return {
+    isLoading, // 3️⃣ تصدير حالة التحميل
     user, setUser, view, activeTab, setActiveTab,
     members, meetings, adminSlots, availability, settings, setSettings, analysisResult,
     isModalOpen, setIsModalOpen, editingMemberId, setEditingMemberId,
