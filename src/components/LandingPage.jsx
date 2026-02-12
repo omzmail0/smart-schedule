@@ -6,7 +6,7 @@ const LandingPage = ({ onStart, settings }) => {
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans text-gray-800 flex flex-col" dir="rtl">
       
-      {/* Navbar - مختصر ونظيف */}
+      {/* Navbar */}
       <nav className="p-6 flex justify-between items-center max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="flex items-center gap-3">
             {settings.logo ? (
@@ -49,7 +49,7 @@ const LandingPage = ({ onStart, settings }) => {
           فكرة الأداة بسيطة: المدير بيطرح المواعيد المتاحة عنده، وأنت بتدخل تختار اللي يناسبك منهم.
         </p>
 
-        {/* Workflow Section - شرح الآلية بدلاً من المميزات */}
+        {/* Workflow Section */}
         <div className="w-full max-w-4xl grid md:grid-cols-[1fr_auto_1fr] items-center gap-6 mb-16">
             
             {/* Step 1 */}
@@ -89,7 +89,7 @@ const LandingPage = ({ onStart, settings }) => {
         </div>
 
         {/* Action Button */}
-        <div className="mb-16">
+        <div className="mb-12">
             <Button 
                 onClick={onStart} 
                 style={{ backgroundColor: settings.primaryColor }} 
@@ -99,18 +99,16 @@ const LandingPage = ({ onStart, settings }) => {
             </Button>
         </div>
 
-        {/* Generic Alert - التنبيه العام */}
-        <div className="w-full max-w-xl bg-orange-50/60 border border-orange-100 rounded-2xl p-5 flex items-start gap-4 text-right mx-auto">
-            <ShieldAlert size={24} className="text-orange-500 shrink-0 mt-1"/>
+        {/* Clean Alert - بدون أزرار */}
+        <div className="w-full max-w-lg bg-orange-50/50 border border-orange-100 rounded-2xl p-4 flex items-center gap-4 text-right mx-auto">
+            <div className="bg-orange-100 p-3 rounded-full shrink-0">
+                <ShieldAlert size={20} className="text-orange-600"/>
+            </div>
             <div>
-                <h4 className="font-bold text-gray-800 text-sm mb-1">تنبيه بشأن الحسابات</h4>
-                <p className="text-xs text-gray-500 leading-relaxed mb-3">
-                    للحفاظ على الخصوصية، لا يمكن إنشاء حساب جديد من هنا. 
-                    يجب التواصل مع <strong>مسؤول الفريق</strong> لإنشاء حساب لك وتسليمك بيانات الدخول.
+                <h4 className="font-bold text-gray-800 text-sm mb-1">ليس لديك حساب؟</h4>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                    الدخول متاح للأعضاء المسجلين فقط. يرجى التواصل مع <strong>مسؤول الفريق</strong> لإنشاء حساب لك واستلام بيانات الدخول.
                 </p>
-                <button onClick={onStart} className="text-[10px] font-bold text-white bg-orange-400 hover:bg-orange-500 px-3 py-1.5 rounded-lg transition-colors">
-                    معايا حساب، دخول
-                </button>
             </div>
         </div>
 
