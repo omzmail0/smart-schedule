@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, CheckCircle2, Calendar, Zap, Clock } from 'lucide-react'; // استيراد الأيقونات
+import { Info, CheckCircle2, Calendar, Zap, Clock } from 'lucide-react';
 import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
@@ -20,7 +20,7 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
         {meetings.length > 0 && (
            <div>
              <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2">
-                <Calendar size={16} className="text-gray-500"/>
+                <Calendar size={18} style={{ color: settings.primaryColor }} />
                 اجتماعات مؤكدة
              </h3>
              <div className="space-y-3">
@@ -52,9 +52,17 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
         <div>
            <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2">
                {user.role === 'admin' ? (
-                   <><Zap size={16} className="text-yellow-500 fill-yellow-500"/> الأوقات المتاحة للفريق</>
+                   <>
+                    {/* أيقونة موحدة للمدير */}
+                    <Zap size={18} style={{ color: settings.primaryColor, fill: `${settings.primaryColor}20` }} /> 
+                    الأوقات المتاحة للفريق
+                   </>
                ) : (
-                   <><Clock size={16} className="text-blue-500"/> حدد أوقات فراغك</>
+                   <>
+                    {/* أيقونة موحدة للعضو */}
+                    <Clock size={18} style={{ color: settings.primaryColor }} /> 
+                    حدد أوقات فراغك
+                   </>
                )}
            </h3>
            <DailyScheduler 
