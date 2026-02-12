@@ -1,11 +1,10 @@
 import React from 'react';
-import { Calendar, UserCog, ArrowLeft, ArrowDown, Clock } from 'lucide-react';
+import { Calendar, UserCog, ArrowLeft, ArrowDown } from 'lucide-react';
 import Button from './Button';
 
-// استقبلنا adminSlots
 const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
   
-  // هل الدورة نشطة؟ (هل المدير حدد مواعيد؟)
+  // هل الدورة نشطة؟
   const hasActiveCycle = adminSlots && adminSlots.length > 0;
 
   return (
@@ -36,23 +35,14 @@ const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center pt-10 px-6 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
         
-        {/* الحالة الديناميكية (Dynamic Badge) */}
-        {hasActiveCycle ? (
-            // الحالة: النظام يعمل (أزرق)
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-800 text-xs font-bold mb-6 border border-blue-100">
-                <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
-                </span>
-                النظام يعمل - الدورة مفتوحة
-            </div>
-        ) : (
-            // الحالة: بانتظار المدير (برتقالي)
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 text-orange-800 text-xs font-bold mb-6 border border-orange-100">
-                <Clock size={14} className="text-orange-500"/>
-                بانتظار بدء دورة جديدة
-            </div>
-        )}
+        {/* الحالة الديناميكية (نفس الشكل، اختلاف اللون والنص فقط) */}
+        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6 border ${hasActiveCycle ? 'bg-blue-50 text-blue-800 border-blue-100' : 'bg-orange-50 text-orange-800 border-orange-100'}`}>
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${hasActiveCycle ? 'bg-blue-400' : 'bg-orange-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${hasActiveCycle ? 'bg-blue-600' : 'bg-orange-600'}`}></span>
+            </span>
+            {hasActiveCycle ? "النظام يعمل الآن" : "بانتظار بدء دورة جديدة"}
+        </div>
 
         <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-gray-900 max-w-3xl">
           نسّق مواعيدك مع <br/>
@@ -101,20 +91,15 @@ const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
 
         </div>
 
-        {/* Action Button - يتغير نصه برضو */}
+        {/* Action Button - رجع زي ما كان */}
         <div className="mb-12">
             <Button 
                 onClick={onStart} 
-                style={{ backgroundColor: hasActiveCycle ? settings.primaryColor : '#9ca3af' }} // لون رمادي لو مفيش دورة
+                style={{ backgroundColor: settings.primaryColor }} 
                 className="h-14 px-10 text-lg text-white shadow-xl rounded-2xl hover:opacity-90 transition-opacity"
             >
-                {hasActiveCycle ? "ابدأ اختيار مواعيدك" : "دخول النظام"} <ArrowLeft size={20}/>
+                ابدأ اختيار مواعيدك <ArrowLeft size={20}/>
             </Button>
-            {!hasActiveCycle && (
-                <p className="text-[10px] text-orange-500 mt-3 font-bold">
-                    * المواعيد مغلقة حالياً، يمكنك الدخول للتصفح فقط
-                </p>
-            )}
         </div>
 
       </main>
