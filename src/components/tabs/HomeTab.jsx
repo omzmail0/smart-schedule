@@ -3,7 +3,6 @@ import { Info, CheckCircle2 } from 'lucide-react';
 import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
-// 1. استقبلنا onCancelMeeting هنا
 const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
@@ -14,6 +13,7 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
              <p className="text-sm text-blue-800 leading-relaxed relative z-10 font-medium">يرجى تحديد <strong>جميع</strong> الأوقات المناسبة لك، وليس موعداً واحداً فقط. كلما زادت اختياراتك، زادت فرصة التوافق مع الفريق!</p>
           </div>
         )}
+        
         {meetings.length > 0 && (
            <div>
              <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">📅 اجتماعات مؤكدة</h3>
@@ -26,15 +26,11 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: settings.primaryColor }}><span className="font-bold text-xl">{formatTime(h).split(':')[0]}</span></div>
                         <div><div className="font-bold text-gray-800 text-lg">اجتماع</div><div className="text-sm font-medium text-gray-400">{formatDate(new Date(y, m-1, d))}</div></div>
                      </div>
-                     {/* 2. تصحيح زر الإلغاء لاستدعاء الدالة الفعلية */}
+                     
+                     {/* ✅ التصحيح هنا: استدعاء الدالة مباشرة بدون triggerConfirm إضافي */}
                      {user.role === 'admin' && (
                         <button 
-                            onClick={() => triggerConfirm(
-                                "إلغاء الاجتماع", 
-                                "هل أنت متأكد من إلغاء هذا الاجتماع؟ سيتم فتح الجدول للأعضاء مرة أخرى.", 
-                                () => onCancelMeeting(meet.id), // هنا الربط الصحيح
-                                true
-                            )} 
+                            onClick={() => onCancelMeeting(meet.id)} 
                             className="bg-red-50 text-red-500 p-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
                         >
                             إلغاء
@@ -46,6 +42,7 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
              </div>
            </div>
         )}
+        
         <div>
            <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">{user.role === 'admin' ? '⚡ الأوقات المتاحة للفريق' : '📌 حدد أوقات فراغك'}</h3>
            <DailyScheduler 
