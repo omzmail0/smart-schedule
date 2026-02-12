@@ -4,26 +4,28 @@ import Button from './Button';
 
 const LandingPage = ({ onStart, settings }) => {
   return (
-    <div className="min-h-screen bg-[#FDFDFD] font-sans text-gray-800 flex flex-col" dir="rtl">
+    <div className="min-h-screen bg-[#FDFDFD] font-sans text-gray-800 flex flex-col pt-20" dir="rtl">
       
-      {/* Navbar */}
-      <nav className="p-6 flex justify-between items-center max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="flex items-center gap-3">
-            {settings.logo ? (
-                <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover shadow-sm"/>
-            ) : (
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: settings.primaryColor }}>
-                    {settings.teamName[0]}
+      {/* Navbar - Fixed & Sticky */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FDFDFD]/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300">
+        <div className="p-4 md:p-6 flex justify-between items-center max-w-5xl mx-auto w-full">
+            <div className="flex items-center gap-3">
+                {settings.logo ? (
+                    <img src={settings.logo} className="w-10 h-10 rounded-xl object-cover shadow-sm"/>
+                ) : (
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: settings.primaryColor }}>
+                        {settings.teamName[0]}
+                    </div>
+                )}
+                <div>
+                    <h1 className="font-extrabold text-lg text-gray-800 leading-tight">{settings.teamName}</h1>
+                    <p className="text-[10px] font-bold text-gray-400">أداة التنسيق</p>
                 </div>
-            )}
-            <div>
-                <h1 className="font-extrabold text-lg text-gray-800 leading-tight">{settings.teamName}</h1>
-                <p className="text-[10px] font-bold text-gray-400">أداة التنسيق</p>
             </div>
+            <button onClick={onStart} className="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
+                تسجيل دخول <ArrowLeft size={16}/>
+            </button>
         </div>
-        <button onClick={onStart} className="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
-            تسجيل دخول <ArrowLeft size={16}/>
-        </button>
       </nav>
 
       {/* Hero Section */}

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Calendar, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Calendar, ArrowRight, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import Button from './Button';
 
 const AuthScreen = ({ onLogin, settings, onBack }) => {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false); // حالة إظهار كلمة المرور
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,28 +39,39 @@ const AuthScreen = ({ onLogin, settings, onBack }) => {
                 <input 
                     className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700 placeholder:font-normal" 
                     style={{ '--tw-ring-color': settings.primaryColor }} 
-                    placeholder="اكتب اسمك هنا"
+                    // التعديل هنا: نص توضيحي أفضل
+                    placeholder="اسم المستخدم الخاص بك"
                     value={loginData.username} 
                     onChange={e => setLoginData({...loginData, username: e.target.value.replace(/\s/g, '')})} 
                 />
             </div>
 
-            <div>
+            <div className="relative">
                 <label className="block text-xs font-bold text-gray-400 mb-1.5 mr-1">كلمة المرور</label>
-                <input 
-                    type="password" 
-                    className="w-full h-14 px-5 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700 placeholder:font-normal" 
-                    style={{ '--tw-ring-color': settings.primaryColor }} 
-                    placeholder="••••••••" 
-                    value={loginData.password} 
-                    onChange={e => setLoginData({...loginData, password: e.target.value})} 
-                />
+                <div className="relative">
+                    <input 
+                        type={showPassword ? "text" : "password"} // تغيير النوع بناءً على الحالة
+                        className="w-full h-14 px-5 pl-12 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 transition-all font-bold text-gray-700 placeholder:font-normal" 
+                        style={{ '--tw-ring-color': settings.primaryColor }} 
+                        placeholder="••••••••" 
+                        value={loginData.password} 
+                        onChange={e => setLoginData({...loginData, password: e.target.value})} 
+                    />
+                    {/* زر العين للإظهار والإخفاء */}
+                    <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                </div>
             </div>
 
             <Button className="w-full h-14 text-base mt-4 font-bold shadow-lg" style={{ backgroundColor: settings.primaryColor }}>دخول</Button>
           </form>
 
-          {/* التنبيه تم نقله هنا */}
+          {/* التنبيه */}
           <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-start gap-3">
              <ShieldAlert size={20} className="text-orange-500 shrink-0 mt-0.5"/>
              <div>
