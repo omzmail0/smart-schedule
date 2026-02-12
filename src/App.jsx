@@ -9,7 +9,7 @@ import Header from './components/common/Header';
 import Toast from './components/common/Toast';
 import ConfirmModal from './components/common/ConfirmModal';
 
-// Tabs & Modals (تأكد أنك أنشأت الملفات التي أرسلتها سابقاً في مجلداتهم)
+// Tabs & Modals
 import HomeTab from './components/tabs/HomeTab';
 import MembersTab from './components/tabs/MembersTab';
 import SettingsTab from './components/tabs/SettingsTab';
@@ -21,7 +21,6 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
-  // دوال فتح المودال (بسيطة للعرض)
   const openAddModal = () => { logic.setMemberForm({ name: '', username: '', password: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
   const openEditModal = (member) => { logic.setMemberForm({ name: member.name, username: member.username, password: member.password }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
   const openEditProfile = () => { logic.setMemberForm({ name: logic.user.name, username: logic.user.username, password: logic.user.password }); logic.setEditingMemberId(logic.user.id); logic.setIsModalOpen(true); };
@@ -39,9 +38,9 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {/* المنطق: صفحة هبوط -> تسجيل دخول -> التطبيق */}
       {logic.view === 'landing' ? (
-          <LandingPage onStart={logic.onStart} settings={logic.settings} />
+          // ✅ التعديل هنا: مررنا adminSlots
+          <LandingPage onStart={logic.onStart} settings={logic.settings} adminSlots={logic.adminSlots} />
       ) : logic.view === 'login' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onBack={logic.onBackToLanding} onShowToast={logic.showToast} />
       ) : (
