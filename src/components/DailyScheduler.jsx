@@ -10,13 +10,11 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date())); 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   
-  // States for Member Wizard Flow
-  const [currentStep, setCurrentStep] = useState(0); // 0, 1, 2... (Days), Last Step is Review
+  const [currentStep, setCurrentStep] = useState(0); 
   
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // Slider refs for Admin View
   const sliderRef = useRef(null);
   const [isDown, setIsDown] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -75,13 +73,12 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     } catch (e) { onShowToast("حدث خطأ أثناء الحفظ", "error"); }
   };
 
-  const handleMarkBusy = () => {
-      onTriggerConfirm("غير متاح", "هل أنت متأكد أنك غير متاح في أي وقت؟", async () => {
-            try {
-                await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
-                setSelected([]); setHasUnsavedChanges(false); onShowToast("تم الإبلاغ أنك غير متاح");
-            } catch(e) { onShowToast(e.message, "error"); }
-      }, true);
+  const handleMarkBusy = async () => {
+        // لا نحتاج لتأكيد هنا لأننا سنظهر هذا الزر فقط في الشاشة النهائية إذا لم يختر أي شيء
+        try {
+            await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
+            setSelected([]); setHasUnsavedChanges(false); setIsSuccess(true);
+        } catch(e) { onShowToast(e.message, "error"); }
   };
 
   // --- Render for MEMBER (Wizard Step-by-Step View) ---
@@ -96,7 +93,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
           return !isPastTime(`${y}-${m}-${d}`, h);
       });
 
-      // Group by Day
       const slotsByDay = sortedAdminSlots.reduce((acc, slot) => {
           const dateStr = slot.split('-').slice(0, 3).join('-');
           if (!acc[dateStr]) acc[dateStr] = [];
@@ -107,6 +103,27 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       const dayKeys = Object.keys(slotsByDay);
       const totalSteps = dayKeys.length;
       const isFinalStep = currentStep === totalSteps;
+
+      // دالة الانتقال للخطوة التالية مع التحقق
+      const handleNextStep = () => {
+          if (currentStep < totalSteps) {
+              const currentDaySlots = slotsByDay[dayKeys[currentStep]];
+              const hasSelectedToday = currentDaySlots.some(slot => selected.includes(slot));
+
+              if (!hasSelectedToday) {
+                  onTriggerConfirm(
+                      "لم تختر أي موعد اليوم",
+                      "هل أنت متأكد أنك غير متاح طوال هذا اليوم؟",
+                      () => setCurrentStep(prev => prev + 1),
+                      false // ليس إجراء تدميري، مجرد تنبيه
+                  );
+              } else {
+                  setCurrentStep(prev => prev + 1);
+              }
+          } else {
+              setCurrentStep(prev => prev + 1);
+          }
+      };
 
       return (
         <div className="pb-40 animate-in fade-in">
@@ -166,40 +183,47 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                             </div>
                         </div>
                     ) : (
-                        // --- Final Step (Review & Actions) ---
+                        // --- Final Step (Review & Actions - Smart View) ---
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
-                            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
-                                <Send size={40}/>
-                            </div>
-                            <h3 className="text-2xl font-black text-gray-800 mb-2">أحسنت يا بطل! 👏</h3>
-                            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-                                لقد قمت باختيار <strong className="text-gray-800 mx-1">{selected.length}</strong> ساعة متاحة.<br/>
-                                هل تريد اعتماد هذه المواعيد؟
-                            </p>
-
-                            <div className="space-y-3">
-                                <Button 
-                                    onClick={saveChanges} 
-                                    disabled={selected.length === 0} 
-                                    style={{ backgroundColor: themeColor }} 
-                                    className="w-full h-14 text-lg shadow-xl text-white"
-                                >
-                                    إرسال المواعيد للمدير <CheckCircle2 size={20} className="mr-2"/>
-                                </Button>
-
-                                <div className="relative py-4 flex items-center justify-center">
-                                    <div className="h-px bg-gray-100 w-full absolute"></div>
-                                    <span className="bg-white px-3 text-gray-400 text-xs font-bold relative z-10">أو</span>
-                                </div>
-
-                                <button 
-                                    onClick={handleMarkBusy} 
-                                    className="w-full h-14 bg-red-50 border-2 border-red-100 text-red-500 rounded-2xl font-bold text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <UserX size={18}/>
-                                    لا يوجد مواعيد مناسبة لي
-                                </button>
-                            </div>
+                            {selected.length > 0 ? (
+                                // الحالة الأولى: قام بتحديد مواعيد
+                                <>
+                                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600">
+                                        <Send size={40}/>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-gray-800 mb-2">أحسنت يا بطل! 👏</h3>
+                                    <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                                        لقد قمت باختيار <strong className="text-gray-800 mx-1">{selected.length}</strong> ساعة مناسبة لك.<br/>
+                                        هل نعتمد هذه المواعيد؟
+                                    </p>
+                                    <Button 
+                                        onClick={saveChanges} 
+                                        style={{ backgroundColor: themeColor }} 
+                                        className="w-full h-14 text-lg shadow-xl text-white"
+                                    >
+                                        اعتماد وإرسال <CheckCircle2 size={20} className="mr-2"/>
+                                    </Button>
+                                </>
+                            ) : (
+                                // الحالة الثانية: لم يحدد أي موعد نهائياً
+                                <>
+                                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
+                                        <UserX size={40}/>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-gray-800 mb-2">لم تجد وقتاً مناسباً؟</h3>
+                                    <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                                        يبدو أن المواعيد المتاحة من المدير لا تناسبك نهائياً.<br/>
+                                        سيتم تسجيل أنك "مشغول" في هذه الدورة.
+                                    </p>
+                                    <button 
+                                        onClick={handleMarkBusy} 
+                                        className="w-full h-14 bg-red-500 text-white rounded-2xl font-bold text-sm shadow-xl hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <UserX size={18}/>
+                                        تأكيد أني غير متاح
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -216,9 +240,9 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                                     <ArrowRight size={24}/>
                                 </button>
 
-                                {/* زر التالي */}
+                                {/* زر التالي (يستدعي الدالة الذكية) */}
                                 <button 
-                                    onClick={() => setCurrentStep(prev => Math.min(totalSteps, prev + 1))}
+                                    onClick={handleNextStep}
                                     style={{ backgroundColor: themeColor }}
                                     className="h-12 px-8 rounded-full text-white font-bold shadow-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
                                 >
@@ -234,9 +258,11 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
             {isSuccess && (
                 <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300 text-center">
                     <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 animate-bounce"><CheckCircle2 size={64} className="text-green-500"/></div>
-                    <h2 className="text-3xl font-black text-gray-800 mb-3">تم الإرسال بنجاح!</h2>
-                    <p className="text-gray-500 mb-10 max-w-xs leading-relaxed mx-auto">شكراً لك. تم تسجيل الأوقات التي تناسبك.</p>
-                    <Button onClick={() => { setIsSuccess(false); setCurrentStep(0); }} variant="outline" className="w-full h-14 border-2">تعديل المواعيد مرة أخرى</Button>
+                    <h2 className="text-3xl font-black text-gray-800 mb-3">تم التسجيل بنجاح!</h2>
+                    <p className="text-gray-500 mb-10 max-w-xs leading-relaxed mx-auto">
+                        {selected.length > 0 ? "شكراً لك. تم تسجيل الأوقات التي تناسبك." : "تم تسجيل أنك غير متاح في هذه المواعيد."}
+                    </p>
+                    <Button onClick={() => { setIsSuccess(false); setCurrentStep(0); }} variant="outline" className="w-full h-14 border-2">تعديل الرد</Button>
                 </div>
             )}
         </div>
