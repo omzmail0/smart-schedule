@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserX, CheckCircle2, CalendarDays, Pencil, LogOut } from 'lucide-react';
+import { UserX, CheckCircle2, CalendarDays, Pencil, LogOut, Search } from 'lucide-react';
 import { formatDate, formatTime } from '../../utils/helpers';
 import Button from '../Button';
 
@@ -15,7 +15,7 @@ const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
   return (
     <div className="pb-40 animate-in fade-in zoom-in-95 duration-300">
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 text-center">
-            {/* ... (الجزء العلوي كما هو) ... */}
+            {/* ... الجزء العلوي كما هو ... */}
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${isBusy ? 'bg-red-50 shadow-red-100' : 'bg-green-50 shadow-green-100'}`}>
                 {isBusy ? <UserX size={48} className="text-red-500"/> : <CheckCircle2 size={48} className="text-green-500"/>}
             </div>
@@ -31,8 +31,14 @@ const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
                 }
             </p>
             
+            {/* ... باقي الكود كما هو ... */}
             {!isBusy && selected.length > 0 && (
                 <div className="bg-gray-50 rounded-2xl p-4 mb-8 text-right max-h-80 overflow-y-auto space-y-3 border border-gray-100">
+                    {/* إضافة رأس القائمة مع أيقونة */}
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+                        <Search size={16} className="text-gray-400"/>
+                        <span className="text-xs font-bold text-gray-500">ملخص الاختيارات</span>
+                    </div>
                     {Object.entries(groupedSelections).sort().map(([dateStr, hours]) => (
                         <div key={dateStr} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                             <div className="font-bold text-gray-800 text-sm mb-2 flex items-center gap-2">
@@ -56,7 +62,6 @@ const MemberSummary = ({ selected, isBusy, themeColor, onEdit, onLogout }) => {
                     <Pencil size={18} className="mr-2"/> تعديل المواعيد
                 </Button>
                 
-                {/* زر الخروج - تأكد أن onClick مربوط بـ onLogout */}
                 <button 
                     onClick={onLogout} 
                     className="w-full h-14 bg-white border-2 border-red-500 text-red-600 rounded-xl font-bold flex items-center justify-center hover:bg-red-50 transition-colors shadow-sm"

@@ -1,11 +1,13 @@
 import React from 'react';
-import { Info, CheckCircle2 } from 'lucide-react';
+import { Info, CheckCircle2, Calendar, Zap, Clock } from 'lucide-react'; // استيراد الأيقونات
 import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
 const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+        
+        {/* التنبيه (للأعضاء فقط) */}
         {user.role !== 'admin' && (
           <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
              <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
@@ -14,9 +16,13 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
           </div>
         )}
         
+        {/* الاجتماعات المؤكدة */}
         {meetings.length > 0 && (
            <div>
-             <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">📅 اجتماعات مؤكدة</h3>
+             <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2">
+                <Calendar size={16} className="text-gray-500"/>
+                اجتماعات مؤكدة
+             </h3>
              <div className="space-y-3">
                {meetings.map(meet => {
                  const [y, m, d, h] = meet.slot.split('-');
@@ -27,7 +33,6 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
                         <div><div className="font-bold text-gray-800 text-lg">اجتماع</div><div className="text-sm font-medium text-gray-400">{formatDate(new Date(y, m-1, d))}</div></div>
                      </div>
                      
-                     {/* ✅ التصحيح هنا: استدعاء الدالة مباشرة بدون triggerConfirm إضافي */}
                      {user.role === 'admin' && (
                         <button 
                             onClick={() => onCancelMeeting(meet.id)} 
@@ -43,8 +48,15 @@ const HomeTab = ({ user, meetings, adminSlots, settings, showToast, triggerConfi
            </div>
         )}
         
+        {/* القسم الرئيسي (الجدول) */}
         <div>
-           <h3 className="font-bold text-gray-800 text-sm mb-3 px-1">{user.role === 'admin' ? '⚡ الأوقات المتاحة للفريق' : '📌 حدد أوقات فراغك'}</h3>
+           <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2">
+               {user.role === 'admin' ? (
+                   <><Zap size={16} className="text-yellow-500 fill-yellow-500"/> الأوقات المتاحة للفريق</>
+               ) : (
+                   <><Clock size={16} className="text-blue-500"/> حدد أوقات فراغك</>
+               )}
+           </h3>
            <DailyScheduler 
                 userId={user.id} 
                 role={user.role} 

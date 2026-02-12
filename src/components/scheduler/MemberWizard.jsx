@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Lock, CheckCircle2, UserX, ArrowRight, ArrowLeft, Send, Check } from 'lucide-react';
+import { Calendar, Lock, CheckCircle2, UserX, ArrowRight, ArrowLeft, Send, Check, ThumbsUp, Search } from 'lucide-react';
 import { formatDate, formatTime, isPastTime } from '../../utils/helpers';
 import Button from '../Button';
 
@@ -7,7 +7,6 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
   const [currentStep, setCurrentStep] = useState(0);
   const isScheduleFrozen = bookedSlots.length > 0;
 
-  // 1. Prepare Data
   const sortedAdminSlots = [...adminSlots].sort((a, b) => {
       const dateA = new Date(a.split('-').slice(0,3).join('-') + ' ' + a.split('-')[3] + ':00');
       const dateB = new Date(b.split('-').slice(0,3).join('-') + ' ' + b.split('-')[3] + ':00');
@@ -32,18 +31,12 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
       if (currentStep < totalSteps) {
           const currentDaySlots = slotsByDay[dayKeys[currentStep]];
           const hasSelectedToday = currentDaySlots.some(slot => selected.includes(slot));
-
           if (!hasSelectedToday) {
               onTriggerConfirm("تنبيه", "لم تختر أي موعد اليوم، هل أنت متأكد؟", () => setCurrentStep(prev => prev + 1), false);
-          } else {
-              setCurrentStep(prev => prev + 1);
-          }
-      } else {
-          setCurrentStep(prev => prev + 1);
-      }
+          } else { setCurrentStep(prev => prev + 1); }
+      } else { setCurrentStep(prev => prev + 1); }
   };
 
-  // الحالة 1: لا توجد مواعيد
   if (dayKeys.length === 0) {
       return (
         <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm animate-in fade-in">
@@ -54,15 +47,12 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
       );
   }
 
-  // الحالة 2: الجدول مغلق
   if (isScheduleFrozen) {
       return <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>;
   }
 
-  // الحالة 3: الـ Wizard
   return (
     <div className="pb-40 animate-in fade-in">
-        {/* Progress Bar */}
         <div className="mb-6 px-2">
             <div className="flex justify-between text-xs font-bold text-gray-400 mb-2">
                 <span>{isFinalStep ? "المراجعة النهائية" : `يوم ${currentStep + 1} من ${totalSteps}`}</span>
@@ -74,7 +64,6 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
         </div>
 
         {!isFinalStep ? (
-            // Day View
             <div className="animate-in slide-in-from-right-4 duration-300" key={currentStep}>
                 <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 min-h-[300px]">
                     <div className="text-center mb-6">
@@ -98,12 +87,12 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
                 </div>
             </div>
         ) : (
-            // Review View
             <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
                 {selected.length > 0 ? (
                     <>
-                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Send size={40}/></div>
-                        <h3 className="text-2xl font-black text-gray-800 mb-2">مراجعة سريعة 🧐</h3>
+                        {/* استبدال Send بـ ThumbsUp */}
+                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><ThumbsUp size={40}/></div>
+                        <h3 className="text-2xl font-black text-gray-800 mb-2">أحسنت يا بطل!</h3>
                         <p className="text-gray-500 text-sm mb-6">لقد اخترت {selected.length} ساعة. تأكد قبل الإرسال.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setCurrentStep(prev => prev - 1)} className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"><ArrowRight size={24}/></button>
@@ -124,7 +113,6 @@ const MemberWizard = ({ adminSlots, bookedSlots, selected, onToggleSlot, onSave,
             </div>
         )}
 
-        {/* Sticky Nav Buttons */}
         {!isFinalStep && (
             <div className="fixed bottom-24 left-0 right-0 z-30 px-6 pointer-events-none">
                 <div className="max-w-lg mx-auto flex justify-between items-center pointer-events-auto">

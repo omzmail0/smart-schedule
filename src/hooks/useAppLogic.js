@@ -5,23 +5,15 @@ import { generateId, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
   const [isLoading, setIsLoading] = useState(true);
-  
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
-  
-  const [settings, setSettings] = useState({ 
-      teamName: '...', 
-      primaryColor: '#0e395c', 
-      logo: null 
-  });
-
+  const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null });
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
@@ -36,23 +28,19 @@ export const useAppLogic = () => {
 
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
-        if (docSnap.exists()) {
-            setSettings(docSnap.data());
-        } else {
-            setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null });
-        }
+        if (docSnap.exists()) { setSettings(docSnap.data()); } 
+        else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null }); }
         setIsLoading(false); 
     });
     return () => unsubSettings();
   }, []);
 
-  // ✅ التصحيح هنا: return الدالة مباشرة
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
         else setAdminSlots([]);
     });
-    return () => unsub(); // استدعاء دالة الإلغاء بشكل صحيح
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -60,9 +48,7 @@ export const useAppLogic = () => {
         const adminRef = doc(db, "users", "admin");
         const adminSnap = await getDoc(adminRef);
         if (!adminSnap.exists()) {
-            await setDoc(adminRef, {
-                id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
-            });
+            await setDoc(adminRef, { id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp() });
         }
     };
     initAdmin();
@@ -70,10 +56,7 @@ export const useAppLogic = () => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
-    if (savedUser) {
-        setUser(JSON.parse(savedUser));
-        setView('app');
-    }
+    if (savedUser) { setUser(JSON.parse(savedUser)); setView('app'); }
   }, []);
 
   useEffect(() => {
@@ -81,9 +64,7 @@ export const useAppLogic = () => {
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
-       const data = {};
-       snap.forEach(d => { data[d.id] = d.data(); });
-       setAvailability(data);
+       const data = {}; snap.forEach(d => { data[d.id] = d.data(); }); setAvailability(data);
     });
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
@@ -103,18 +84,11 @@ export const useAppLogic = () => {
             setView('app');
             setActiveTab('home');
             showToast(`مرحباً بك يا ${userData.name.split(' ')[0]}`);
-        } else {
-            showToast("بيانات الدخول غير صحيحة", "error");
-        }
+        } else { showToast("بيانات الدخول غير صحيحة", "error"); }
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); }
   };
 
-  const handleLogout = () => {
-      localStorage.removeItem('smartScheduleUser');
-      setUser(null);
-      setView('landing'); 
-      setActiveTab('home');
-  };
+  const handleLogout = () => { localStorage.removeItem('smartScheduleUser'); setUser(null); setView('landing'); setActiveTab('home'); };
 
   const handleSaveMember = async () => {
     if (!memberForm.name || !memberForm.username || !memberForm.password) return showToast("البيانات ناقصة", "error");
@@ -123,22 +97,19 @@ export const useAppLogic = () => {
         const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
         const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: role, createdAt: serverTimestamp() };
         await setDoc(doc(db, "users", id), userData, { merge: true });
-        if (user && user.id === id) {
-            setUser(userData);
-            localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
-        }
+        if (user && user.id === id) { setUser(userData); localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); }
         setIsModalOpen(false);
-        showToast(editingMemberId ? "تم التعديل" : "تمت الإضافة");
+        showToast(editingMemberId ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
     } catch (e) { showToast(e.message, "error"); }
   };
 
   const deleteMember = (memberId) => { 
       triggerConfirm("حذف العضو", "هل أنت متأكد من الحذف؟", async () => {
-        await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); showToast("تم الحذف");
+        await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); showToast("تم الحذف بنجاح");
       }, true);
   };
 
-  const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم التحديث"); };
+  const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم تحديث الإعدادات"); };
 
   const analyzeSchedule = () => {
     if (adminSlots.length === 0) return showToast("يرجى تحديد الأوقات المتاحة أولاً", "error");
@@ -166,13 +137,12 @@ export const useAppLogic = () => {
 
   const resetAllAvailability = () => { 
       triggerConfirm("تصفير الجداول", "سيتم مسح كل الجداول. متأكد؟", async () => {
-        const snap = await getDocs(collection(db, "availability")); const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id))); await Promise.all(deletePromises); showToast("تم التصفير");
+        const snap = await getDocs(collection(db, "availability")); const deletePromises = snap.docs.map(d => deleteDoc(doc(db, "availability", d.id))); await Promise.all(deletePromises); showToast("تم التصفير بنجاح");
       }, true);
   };
 
   return {
-    isLoading,
-    user, setUser, view, activeTab, setActiveTab,
+    isLoading, user, setUser, view, activeTab, setActiveTab,
     members, meetings, adminSlots, availability, settings, setSettings, analysisResult,
     isModalOpen, setIsModalOpen, editingMemberId, setEditingMemberId,
     memberForm, setMemberForm, inspectMember, setInspectMember,
