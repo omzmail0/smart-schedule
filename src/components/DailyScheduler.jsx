@@ -17,7 +17,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  // --- Logic for Admin Slider ---
   const handleMouseDown = (e) => { setIsDown(true); setStartX(e.pageX - sliderRef.current.offsetLeft); setScrollLeft(sliderRef.current.scrollLeft); };
   const handleMouseLeave = () => setIsDown(false);
   const handleMouseUp = () => setIsDown(false);
@@ -50,28 +49,14 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
   const activeDate = days[activeDayIndex];
   const goToday = () => setWeekStart(getStartOfWeek(new Date()));
 
-  // --- Toggle Function ---
   const toggleSlot = (slotId) => {
     if (readOnlyView || isScheduleFrozen) return;
-    
-    // Check if slot is in bookedSlots (redundant but safe)
     if (bookedSlots.some(m => m.slot === slotId)) return onShowToast("هذا الموعد تم اعتماده مسبقاً", "error");
 
     const newSelected = selected.includes(slotId) ? selected.filter(s => s !== slotId) : [...selected, slotId];
     setSelected(newSelected);
     setHasUnsavedChanges(true);
     if (navigator.vibrate) navigator.vibrate(30);
-  };
-
-  const selectAll = () => {
-      // يختار كل المواعيد المتاحة من المدير (للمستخدم فقط)
-      const validAdminSlots = adminSlots.filter(s => {
-          const [y, m, d, h] = s.split('-');
-          return !isPastTime(`${y}-${m}-${d}`, h) && !bookedSlots.some(b => b.slot === s);
-      });
-      setSelected(validAdminSlots);
-      setHasUnsavedChanges(true);
-      onShowToast("تم تحديد جميع المواعيد");
   };
 
   const handleInitialSave = () => {
@@ -104,19 +89,17 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
     if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(h); return acc;
   }, {});
 
-  // --- Render for MEMBER (Improved List View) ---
+  // --- Render for MEMBER (List View) ---
   if (role !== 'admin') {
-      // 1. تصفية وترتيب مواعيد المدير
       const sortedAdminSlots = [...adminSlots].sort((a, b) => {
           const dateA = new Date(a.split('-').slice(0,3).join('-') + ' ' + a.split('-')[3] + ':00');
           const dateB = new Date(b.split('-').slice(0,3).join('-') + ' ' + b.split('-')[3] + ':00');
           return dateA - dateB;
       }).filter(slot => {
           const [y, m, d, h] = slot.split('-');
-          return !isPastTime(`${y}-${m}-${d}`, h); // إخفاء مواعيد الماضي
+          return !isPastTime(`${y}-${m}-${d}`, h);
       });
 
-      // تجميع المواعيد حسب اليوم للعرض
       const slotsByDay = sortedAdminSlots.reduce((acc, slot) => {
           const dateStr = slot.split('-').slice(0, 3).join('-');
           if (!acc[dateStr]) acc[dateStr] = [];
@@ -136,11 +119,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </div>
             ) : (
                 <>
-                    <div className="flex justify-between items-center mb-4 px-1">
-                        <h3 className="font-bold text-gray-800">اختر ما يناسبك:</h3>
-                        <button onClick={selectAll} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">تحديد الكل</button>
-                    </div>
-
+                    <h3 className="font-bold text-gray-800 mb-4 px-1">اختر المواعيد المناسبة لك:</h3>
                     <div className="space-y-6">
                         {Object.entries(slotsByDay).map(([dateStr, slots]) => (
                             <div key={dateStr} className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
@@ -153,32 +132,17 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                                         const hour = slot.split('-')[3];
                                         const isSelected = selected.includes(slot);
                                         const isBooked = bookedSlots.some(m => m.slot === slot);
-
-                                        if (isBooked) return null; // لا تعرض المحجوز
+                                        if (isBooked) return null;
 
                                         return (
                                             <button
                                                 key={slot}
                                                 onClick={() => toggleSlot(slot)}
                                                 disabled={isScheduleFrozen}
-                                                className={`
-                                                    relative h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-between px-4
-                                                    ${isSelected 
-                                                        ? 'bg-blue-50 border-blue-500 shadow-md' 
-                                                        : 'bg-white border-gray-100 hover:border-blue-200'
-                                                    }
-                                                `}
+                                                className={`relative h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-between px-4 ${isSelected ? 'bg-blue-50 border-blue-500 shadow-md' : 'bg-white border-gray-100 hover:border-blue-200'}`}
                                             >
-                                                <span className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
-                                                    {formatTime(hour)}
-                                                </span>
-                                                {isSelected ? (
-                                                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white">
-                                                        <Check size={12} strokeWidth={3}/>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-5 h-5 rounded-full border-2 border-gray-200"></div>
-                                                )}
+                                                <span className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>{formatTime(hour)}</span>
+                                                {isSelected ? <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white"><Check size={12} strokeWidth={3}/></div> : <div className="w-5 h-5 rounded-full border-2 border-gray-200"></div>}
                                             </button>
                                         );
                                     })}
@@ -189,7 +153,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </>
             )}
 
-            {/* Sticky Action Bar for Member */}
             {!isScheduleFrozen && sortedAdminSlots.length > 0 && (
                 <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
                     <div className="max-w-lg mx-auto flex items-center gap-3 pointer-events-auto">
@@ -212,7 +175,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </div>
             )}
 
-            {/* Review Modal for Member */}
             {isReviewing && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center backdrop-blur-sm animate-in fade-in">
                 <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-y-auto">
@@ -230,7 +192,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
                 </div>
             )}
 
-            {/* Success Screen */}
             {isSuccess && (
                 <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-300 text-center">
                     <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 animate-bounce"><CheckCircle2 size={64} className="text-green-500"/></div>
@@ -243,7 +204,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       );
   }
 
-  // --- Render for ADMIN (Classic Grid View) ---
+  // --- Render for ADMIN (Grid View) ---
   return (
     <div className="pb-40"> 
       {isScheduleFrozen && !readOnlyView && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-pulse"><Lock size={16}/> الجدول مغلق (يوجد اجتماع مؤكد)</div>}
@@ -299,7 +260,6 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         </div>
       </div>
 
-      {/* Admin Action Bar */}
       {!isScheduleFrozen && (
          <div className="fixed bottom-24 left-0 right-0 z-30 px-4 pointer-events-none">
              <div className="max-w-lg mx-auto pointer-events-auto">
