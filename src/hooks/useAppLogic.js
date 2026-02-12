@@ -8,16 +8,15 @@ export const useAppLogic = () => {
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
   
-  // ✅ تم استرجاع اللون الكحلي الأصلي
   const [settings, setSettings] = useState({ 
-      teamName: 'نظام تنسيق المواعيد', 
-      primaryColor: '#0e395c', // اللون الأصلي
+      teamName: 'ميديا صناع الحياة - المنشأة', 
+      primaryColor: '#0e395c', 
       logo: null 
   });
 
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
-  const [adminSlots, setAdminSlots] = useState([]);
+  const [adminSlots, setAdminSlots] = useState([]); // دي اللي فيها المشكلة
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
   
@@ -33,6 +32,7 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
+  // 1. جلب الإعدادات (يعمل دائماً)
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) setSettings(docSnap.data()); 
@@ -40,19 +40,30 @@ export const useAppLogic = () => {
     return () => unsubSettings();
   }, []);
 
+  // 2. ✅ (تصحيح) جلب مواعيد المدير (يعمل دائماً حتى لو مفيش تسجيل دخول)
+  useEffect(() => {
+    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
+        if (doc.exists()) setAdminSlots(doc.data().slots || []); 
+        else setAdminSlots([]);
+    });
+    return () => unsubAdminAvail();
+  }, []);
+
+  // 3. إنشاء حساب الأدمن الافتراضي لو مش موجود
   useEffect(() => {
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
         const adminSnap = await getDoc(adminRef);
         if (!adminSnap.exists()) {
             await setDoc(adminRef, {
-                id: "admin", name: "مسؤول الملف", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
+                id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp()
             });
         }
     };
     initAdmin();
   }, []);
 
+  // 4. التحقق من تسجيل الدخول السابق
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) {
@@ -61,20 +72,21 @@ export const useAppLogic = () => {
     }
   }, []);
 
+  // 5. جلب بيانات الأعضاء والاجتماعات (فقط عند تسجيل الدخول)
   useEffect(() => {
     if (!user) return;
+    
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
     const unsubMeetings = onSnapshot(collection(db, "meetings"), (snap) => setMeetings(snap.docs.map(d => d.data())));
-    const unsubAdminAvail = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
-        if (doc.exists()) setAdminSlots(doc.data().slots || []); 
-        else setAdminSlots([]);
-    });
+    
+    // جلب جداول باقي الأعضاء
     const unsubAllAvail = onSnapshot(collection(db, "availability"), (snap) => {
        const data = {};
        snap.forEach(d => { data[d.id] = d.data(); });
        setAvailability(data);
     });
-    return () => { unsubMembers(); unsubMeetings(); unsubAdminAvail(); unsubAllAvail(); };
+
+    return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
   const onStart = () => setView('login');
@@ -103,7 +115,7 @@ export const useAppLogic = () => {
       setUser(null);
       setView('landing'); 
       setActiveTab('home');
-      setAdminSlots([]);
+      // ملحوظة: مبقناش نفضي adminSlots هنا عشان تفضل ظاهرة في صفحة البداية
   };
 
   const handleSaveMember = async () => {
