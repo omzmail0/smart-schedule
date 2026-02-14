@@ -33,16 +33,12 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
       categorizedMembers[key].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   });
 
-  // ✅ الدالة المعدلة مع النصوص الجديدة
   const generateAndCopyReport = () => {
-      const today = new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
-      
-      // 1. تعديل العنوان
-      let report = `📅 *حالة اجتماع الفريق - ${today}*\n\n`;
+      // ✅ تعديل العنوان ليكون عام وبسيط
+      let report = `📝 *متابعة تحديد مواعيد الاجتماع*\n\n`;
 
       if (categorizedMembers.submitted.length > 0) {
           report += `✅ *تم التحديد (${categorizedMembers.submitted.length}):*\n`;
-          // 2. الاسم بيظهر كامل أصلاً (m.name)
           categorizedMembers.submitted.forEach(m => report += `• ${m.name}\n`);
           report += `\n`;
       }
@@ -56,8 +52,6 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
       if (categorizedMembers.pending.length > 0) {
           report += `⏳ *في الانتظار (${categorizedMembers.pending.length}):*\n`;
           categorizedMembers.pending.forEach(m => report += `• ${m.name}\n`);
-          
-          // 3. الرسالة العفوية في الآخر
           report += `\n💡 *يا شباب اللي لسه مخلصش، ياريت يدخل ع الموقع بالكود اللي بعتهوله في الخاص ويختار المواعيد المناسبة معاه عشان نلحق نعتمد المعاد.*\n`;
       }
 
