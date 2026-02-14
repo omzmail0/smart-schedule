@@ -51,6 +51,7 @@ export default function App() {
                     meetings={logic.meetings} 
                     adminSlots={logic.adminSlots} 
                     settings={logic.settings} 
+                    availability={logic.availability} // ✅ التعديل هنا: تمرير بيانات التوافر
                     showToast={logic.showToast} 
                     triggerConfirm={logic.triggerConfirm} 
                     onLogout={logic.handleLogout} 
@@ -67,7 +68,7 @@ export default function App() {
                     openEditModal={openEditModal} 
                     deleteMember={logic.deleteMember} 
                     setInspectMember={logic.setInspectMember}
-                    regenerateUserCode={logic.regenerateUserCode} // ✅ تمرير الدالة هنا
+                    regenerateUserCode={logic.regenerateUserCode}
                 />
             )}
             {logic.activeTab === 'settings' && logic.user.role === 'admin' && <SettingsTab settings={logic.settings} setSettings={logic.setSettings} saveSettings={logic.saveSettings} resetAllAvailability={logic.resetAllAvailability} />}
@@ -77,7 +78,7 @@ export default function App() {
                     user={logic.user} 
                     settings={logic.settings} 
                     handleLogout={logic.handleLogout} 
-                    regenerateUserCode={logic.regenerateUserCode} // ✅ تمرير الدالة هنا
+                    regenerateUserCode={logic.regenerateUserCode} 
                 />
             )}
           </div>
