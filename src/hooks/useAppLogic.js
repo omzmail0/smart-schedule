@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../utils/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
-import { generateId, isPastTime } from '../utils/helpers';
+import { generateId, generateAccessCode, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -14,18 +14,24 @@ export const useAppLogic = () => {
   const [adminSlots, setAdminSlots] = useState([]);
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
-  const [memberForm, setMemberForm] = useState({ name: '', username: '', password: '' });
+  // ✅ تغييرنا شكل الفورم ليشيل الباسورد واسم المستخدم
+  const [memberForm, setMemberForm] = useState({ name: '', accessCode: '' });
+  
   const [inspectMember, setInspectMember] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
   const showToast = (message, type = 'success') => setToast({ message, type });
+
   const triggerConfirm = (title, message, action, isDestructive = false) => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
+  // 1. جلب الإعدادات
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { setSettings(docSnap.data()); } 
@@ -35,6 +41,7 @@ export const useAppLogic = () => {
     return () => unsubSettings();
   }, []);
 
+  // 2. جلب مواعيد الأدمن
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
@@ -43,22 +50,32 @@ export const useAppLogic = () => {
     return () => unsub();
   }, []);
 
+  // 3. تهيئة حساب الأدمن (تلقائياً بكود ثابت أو عشوائي لأول مرة)
   useEffect(() => {
     const initAdmin = async () => {
         const adminRef = doc(db, "users", "admin");
         const adminSnap = await getDoc(adminRef);
         if (!adminSnap.exists()) {
-            await setDoc(adminRef, { id: "admin", name: "مسؤول الميديا", username: "admin", password: "admin", role: "admin", createdAt: serverTimestamp() });
+            // كود افتراضي للأدمن لأول مرة (يمكن تغييره لاحقاً)
+            await setDoc(adminRef, { 
+                id: "admin", 
+                name: "Admin", 
+                accessCode: "12345678", // كود مبدئي
+                role: "admin", 
+                createdAt: serverTimestamp() 
+            });
         }
     };
     initAdmin();
   }, []);
 
+  // 4. استرجاع الجلسة
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) { setUser(JSON.parse(savedUser)); setView('app'); }
   }, []);
 
+  // 5. جلب البيانات عند تسجيل الدخول
   useEffect(() => {
     if (!user) return;
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
@@ -72,39 +89,79 @@ export const useAppLogic = () => {
   const onStart = () => setView('login');
   const onBackToLanding = () => setView('landing');
 
-  const handleLogin = async (loginData) => {
-    if (!loginData.username || !loginData.password) return showToast("يرجى إكمال جميع البيانات", "error");
+  // ✅ دالة تسجيل الدخول الجديدة (بالكود فقط)
+  const handleLogin = async (inputCode) => {
+    if (!inputCode) return showToast("يرجى إدخال الكود", "error");
+    
+    setIsLoading(true);
     try {
-        const q = query(collection(db, "users"), where("username", "==", loginData.username), where("password", "==", loginData.password));
+        // البحث عن المستخدم صاحب هذا الكود
+        const q = query(collection(db, "users"), where("accessCode", "==", inputCode));
+        constVkSnap = await getDocs(q); // تصحيح اسم المتغير
+
         const snap = await getDocs(q);
+
         if (!snap.empty) {
             const userData = snap.docs[0].data();
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             setView('app');
             setActiveTab('home');
-            showToast(`مرحباً بك يا ${userData.name.split(' ')[0]}`);
-        } else { showToast("بيانات الدخول غير صحيحة", "error"); }
-    } catch (error) { showToast("حدث خطأ في الاتصال", "error"); }
+            showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
+        } else { 
+            showToast("الكود غير صحيح، تأكد منه وحاول مرة أخرى", "error"); 
+        }
+    } catch (error) { 
+        showToast("حدث خطأ في الاتصال", "error"); 
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleLogout = () => { localStorage.removeItem('smartScheduleUser'); setUser(null); setView('landing'); setActiveTab('home'); };
 
+  // ✅ دالة حفظ/إضافة العضو (توليد كود تلقائي)
   const handleSaveMember = async () => {
-    if (!memberForm.name || !memberForm.username || !memberForm.password) return showToast("البيانات ناقصة", "error");
+    if (!memberForm.name) return showToast("يرجى كتابة الاسم", "error");
+
     try {
         const id = editingMemberId || generateId();
+        let finalCode = memberForm.accessCode;
+
+        // لو عضو جديد ومعندوش كود، نولد كود ونتأكد إنه مش مكرر
+        if (!editingMemberId && !finalCode) {
+            let isUnique = false;
+            while (!isUnique) {
+                finalCode = generateAccessCode();
+                const q = query(collection(db, "users"), where("accessCode", "==", finalCode));
+                const snap = await getDocs(q);
+                if (snap.empty) isUnique = true;
+            }
+        }
+
         const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
-        const userData = { id, name: memberForm.name, username: memberForm.username, password: memberForm.password, role: role, createdAt: serverTimestamp() };
+        
+        const userData = { 
+            id, 
+            name: memberForm.name, 
+            accessCode: finalCode, // حفظ الكود
+            role: role, 
+            createdAt: serverTimestamp() 
+        };
+
         await setDoc(doc(db, "users", id), userData, { merge: true });
+        
+        // تحديث البيانات المحلية لو بحدث بياناتي
         if (user && user.id === id) { setUser(userData); localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); }
+
         setIsModalOpen(false);
-        showToast(editingMemberId ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
+        showToast(editingMemberId ? "تم تحديث البيانات" : "تمت إضافة العضو وتوليد الكود");
     } catch (e) { showToast(e.message, "error"); }
   };
 
+  // باقي الدوال كما هي...
   const deleteMember = (memberId) => { 
-      triggerConfirm("حذف العضو", "هل أنت متأكد من الحذف؟", async () => {
+      triggerConfirm("حذف العضو", "سيتم حذف العضو وجداوله. هل أنت متأكد؟", async () => {
         await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); showToast("تم الحذف بنجاح");
       }, true);
   };

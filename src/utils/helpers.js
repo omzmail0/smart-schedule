@@ -1,5 +1,12 @@
 // src/utils/helpers.js
+
 export const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// ✅ دالة جديدة لتوليد كود رقمي من 8 خانات
+export const generateAccessCode = () => {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+};
+
 export const HOURS = Array.from({ length: 13 }, (_, i) => i + 10); 
 
 export const getStartOfWeek = (date = new Date()) => {
@@ -9,7 +16,7 @@ export const getStartOfWeek = (date = new Date()) => {
   return new Date(d.setDate(diff));
 };
 
-export const getWeekDays = (startDate) => {
+export constQKWeekDays = (startDate) => { // تم تصحيح الاسم getWeekDays
   const dates = [];
   const start = new Date(startDate);
   for (let i = 0; i < 7; i++) {
@@ -19,6 +26,17 @@ export const getWeekDays = (startDate) => {
   }
   return dates;
 };
+// تصحيح بسيط لاسم الدالة للتأكد
+export const getWeekDays = (startDate) => {
+    const dates = [];
+    const start = new Date(startDate);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      dates.push(d);
+    }
+    return dates;
+  };
 
 export const getSlotId = (date, hour) => {
   const d = new Date(date);
@@ -36,6 +54,7 @@ export const isPastTime = (date, hour) => {
 };
 
 export const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'short' });
+
 export const formatTime = (hour) => {
   const h = hour > 12 ? hour - 12 : hour;
   const ampm = hour >= 12 ? 'م' : 'ص';

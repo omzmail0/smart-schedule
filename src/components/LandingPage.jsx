@@ -1,10 +1,8 @@
 import React from 'react';
-import { Calendar, UserCog, ArrowLeft, ArrowDown } from 'lucide-react';
+import { Calendar, UserCog, ArrowLeft, ArrowDown, KeyRound, CheckCircle2 } from 'lucide-react';
 import Button from './Button';
 
 const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
-  
-  // هل الدورة نشطة؟
   const hasActiveCycle = adminSlots && adminSlots.length > 0;
 
   return (
@@ -23,19 +21,19 @@ const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
                 )}
                 <div>
                     <h1 className="font-extrabold text-lg text-gray-800 leading-tight">{settings.teamName}</h1>
-                    <p className="text-[10px] font-bold text-gray-400">أداة التنسيق</p>
+                    <p className="text-[10px] font-bold text-gray-400">نظام تنسيق المواعيد</p>
                 </div>
             </div>
             <button onClick={onStart} className="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
-                تسجيل دخول <ArrowLeft size={16}/>
+                دخول بالكود <KeyRound size={16}/>
             </button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center pt-10 px-6 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
+      <main className="flex-1 flex flex-col items-center pt-8 px-6 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
         
-        {/* الحالة الديناميكية (نفس الشكل، اختلاف اللون والنص فقط) */}
+        {/* الحالة */}
         <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6 border ${hasActiveCycle ? 'bg-blue-50 text-blue-800 border-blue-100' : 'bg-orange-50 text-orange-800 border-orange-100'}`}>
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${hasActiveCycle ? 'bg-blue-400' : 'bg-orange-400'}`}></span>
@@ -44,62 +42,70 @@ const LandingPage = ({ onStart, settings, adminSlots = [] }) => {
             {hasActiveCycle ? "النظام يعمل الآن" : "بانتظار بدء دورة جديدة"}
         </div>
 
-        <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-gray-900 max-w-3xl">
-          نسّق مواعيدك مع <br/>
+        <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight text-gray-900 max-w-3xl">
+          نسّق مواعيدك بسهولة <br/>
           <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${settings.primaryColor}, #334155)` }}>
-            خطة الفريق
+             باستخدام كود الدخول
           </span>
         </h1>
         
-        <p className="text-lg text-gray-500 mb-12 max-w-xl mx-auto leading-relaxed">
-          فكرة الأداة بسيطة: المدير بيطرح المواعيد المتاحة عنده، وأنت بتدخل تختار اللي يناسبك منهم.
+        <p className="text-base text-gray-500 mb-10 max-w-lg mx-auto leading-relaxed">
+          بدون تسجيل معقد ولا حفظ كلمات مرور.. كود واحد بيوصلك من الأدمن، بتدخل بيه وتحدد المواعيد اللي تناسبك.
         </p>
 
-        {/* Workflow Section */}
-        <div className="w-full max-w-4xl grid md:grid-cols-[1fr_auto_1fr] items-center gap-6 mb-16">
-            
-            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:border-blue-200 transition-colors">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-2 -mt-2 z-0"></div>
-                <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-3 text-blue-700">
-                        <UserCog size={24}/>
-                    </div>
-                    <h3 className="font-bold text-gray-800 mb-1">1. تحديد المتاح</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                        مسؤول الفريق بيحدد الأول الأوقات اللي هو فاضي فيها خلال الأسبوع.
-                    </p>
-                </div>
-            </div>
-
-            <div className="flex justify-center text-gray-300">
-                <ArrowLeft size={32} className="hidden md:block" />
-                <ArrowDown size={32} className="block md:hidden" />
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:border-green-200 transition-colors">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-full -mr-2 -mt-2 z-0"></div>
-                <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mb-3 text-green-700">
-                        <Calendar size={24}/>
-                    </div>
-                    <h3 className="font-bold text-gray-800 mb-1">2. اختيارك أنت</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                        أنت بتدخل تختار من المواعيد دي الوقت اللي يناسبك عشان نعتمد الاجتماع.
-                    </p>
-                </div>
-            </div>
-
-        </div>
-
-        {/* Action Button - رجع زي ما كان */}
-        <div className="mb-12">
+        {/* Action Button */}
+        <div className="mb-16 w-full max-w-xs">
             <Button 
                 onClick={onStart} 
                 style={{ backgroundColor: settings.primaryColor }} 
-                className="h-14 px-10 text-lg text-white shadow-xl rounded-2xl hover:opacity-90 transition-opacity"
+                className="w-full h-14 text-lg text-white shadow-xl rounded-2xl hover:scale-105 transition-transform"
             >
-                ابدأ اختيار مواعيدك <ArrowLeft size={20}/>
+                معايا الكود، ابدأ <ArrowLeft size={20}/>
             </Button>
+        </div>
+
+        {/* How it works Section (التعليمات) */}
+        <div className="w-full max-w-4xl bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm mb-12 relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-full -mr-10 -mt-10 z-0 opacity-50"></div>
+             
+             <h3 className="text-xl font-black text-gray-800 mb-8 relative z-10">كيف أستخدم الموقع؟</h3>
+             
+             <div className="grid md:grid-cols-3 gap-8 relative z-10 text-right">
+                
+                {/* الخطوة 1 */}
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 font-bold text-xl shadow-sm">1</div>
+                    <h4 className="font-bold text-gray-900 mb-2">استلم الكود</h4>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                        تواصل مع مسؤول الفريق واستلم <span className="font-bold text-gray-700">كود الدخول</span> الخاص بك (مكون من 8 أرقام).
+                    </p>
+                </div>
+
+                {/* سهم */}
+                <div className="hidden md:flex items-center justify-center text-gray-200"><ArrowLeft size={32}/></div>
+
+                {/* الخطوة 2 */}
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-4 font-bold text-xl shadow-sm">2</div>
+                    <h4 className="font-bold text-gray-900 mb-2">سجل دخول</h4>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                        اضغط على "ابدأ"، واكتب الكود في الخانة المخصصة. النظام هيتعرف عليك فوراً.
+                    </p>
+                </div>
+
+                {/* سهم */}
+                <div className="hidden md:flex items-center justify-center text-gray-200"><ArrowLeft size={32}/></div>
+
+                {/* الخطوة 3 */}
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mb-4 font-bold text-xl shadow-sm">3</div>
+                    <h4 className="font-bold text-gray-900 mb-2">اختر الميعاد</h4>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                        هتظهرلك المواعيد اللي طرحها المدير، علم على كل الأوقات اللي انت فاضي فيها واضغط إرسال.
+                    </p>
+                </div>
+
+             </div>
         </div>
 
       </main>
