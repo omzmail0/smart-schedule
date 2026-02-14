@@ -1,16 +1,12 @@
 import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
-
-// Components
 import SplashScreen from './components/common/SplashScreen';
-import LandingPage from './components/LandingPage';
 import AuthScreen from './components/AuthScreen';
+import OnboardingScreen from './components/OnboardingScreen'; // صفحة الشرح الجديدة
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
 import ConfirmModal from './components/common/ConfirmModal';
-
-// Tabs & Modals
 import HomeTab from './components/tabs/HomeTab';
 import MembersTab from './components/tabs/MembersTab';
 import SettingsTab from './components/tabs/SettingsTab';
@@ -22,13 +18,11 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
-  if (logic.isLoading) {
-      return <SplashScreen />;
-  }
+  if (logic.isLoading) return <SplashScreen />;
 
-  const openAddModal = () => { logic.setMemberForm({ name: '', username: '', password: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
-  const openEditModal = (member) => { logic.setMemberForm({ name: member.name, username: member.username, password: member.password }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
-  const openEditProfile = () => { logic.setMemberForm({ name: logic.user.name, username: logic.user.username, password: logic.user.password }); logic.setEditingMemberId(logic.user.id); logic.setIsModalOpen(true); };
+  const openAddModal = () => { logic.setMemberForm({ name: '', accessCode: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
+  const openEditModal = (member) => { logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
+  const openEditProfile = () => { logic.setMemberForm({ name: logic.user.name, accessCode: logic.user.accessCode }); logic.setEditingMemberId(logic.user.id); logic.setIsModalOpen(true); };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -43,16 +37,16 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
+      {/* التوجيه الجديد */}
       {logic.view === 'landing' ? (
-          <LandingPage onStart={logic.onStart} settings={logic.settings} adminSlots={logic.adminSlots} />
-      ) : logic.view === 'login' ? (
-          <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onBack={logic.onBackToLanding} onShowToast={logic.showToast} />
+          <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onShowToast={logic.showToast} />
+      ) : logic.view === 'onboarding' ? (
+          <OnboardingScreen onFinish={logic.finishOnboarding} settings={logic.settings} user={logic.user} />
       ) : (
         <>
           <Header user={logic.user} settings={logic.settings} onLogout={logic.handleLogout} />
           
           <div className="p-5 max-w-lg mx-auto pb-24">
-            {/* ✅ تم إضافة onCancelMeeting هنا */}
             {logic.activeTab === 'home' && (
                 <HomeTab 
                     user={logic.user} 
