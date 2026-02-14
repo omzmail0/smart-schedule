@@ -23,10 +23,10 @@ export const useAppLogic = () => {
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
-  // تحديث دالة التوست عشان تضمن إن مفيش توست قديم معلق
   const showToast = (message, type = 'success') => {
-      setToast(null); // تصفير القديم أولاً
-      setTimeout(() => setToast({ message, type }), 100);
+      setToast(null); 
+      // تأخير بسيط لضمان إعادة الريندر
+      setTimeout(() => setToast({ message, type }), 50);
   };
 
   const triggerConfirm = (title, message, action, isDestructive = false) => {
@@ -73,17 +73,26 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // فحص التوجيه (تشغيل التوست هنا للمستخدمين العائدين)
+  // ✅ تعديل هام: منطق التوجيه عشان التوست ميظهرش كتير
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
+    // ننفذ التوجيه فقط لو المستخدم لسه في وضع الـ onboarding أو landing
+    // لكن لو هو جوه التطبيق already (app)، مش هنعمل حاجة عشان التوست ميتكررش مع كل تحديث للداتا
     if (savedUser) { 
         const u = JSON.parse(savedUser);
         setUser(u);
-        checkRedirect(u, false); // false = لا تظهر توست هنا عشان ميتكررش مع الـ Reload
+        
+        // لو الـ view لسه مش app، نفذ فحص التوجيه
+        if (view !== 'app') {
+            checkRedirect(u, false); // false = متظهرش توست تلقائي مع الريفريش
+        }
     }
-  }, [availability]); 
+  }, [availability]); // الاعتماد على availability ضروري عشان نعرف هو جاوب ولا لأ
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
+      // لو المستخدم حالياً جوه التطبيق، اطلع بره الدالة عشان ميعملش رندر وتوست تاني
+      if (view === 'app') return;
+
       if (userData.role === 'admin') {
           setView('app');
           if(shouldShowToast) showToast(`مرحباً بك يا مدير`);
@@ -99,7 +108,6 @@ export const useAppLogic = () => {
           if(shouldShowToast) showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
       } else {
           setView('onboarding');
-          // هنا مش هنظهر توست عشان ميزعجش المستخدم وهو بيقرأ
       }
   };
 
@@ -114,7 +122,7 @@ export const useAppLogic = () => {
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             
-            // التوجيه مع إظهار الترحيب
+            // هنا بنمرر true عشان ده تسجيل دخول صريح، فمحتاجين ترحيب
             checkRedirect(userData, true);
             setActiveTab('home');
         } else { 
@@ -123,7 +131,6 @@ export const useAppLogic = () => {
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); } finally { setIsLoading(false); }
   };
 
-  // إظهار الترحيب عند إنهاء الشرح
   const finishOnboarding = () => {
       localStorage.setItem('hasSeenOnboarding', 'true');
       setView('app');
