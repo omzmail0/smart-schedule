@@ -6,7 +6,7 @@ import { generateId, generateAccessCode, isPastTime } from '../utils/helpers';
 export const useAppLogic = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('landing'); // landing, onboarding, app
+  const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
   const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null });
   const [members, setMembers] = useState([]);
@@ -15,7 +15,6 @@ export const useAppLogic = () => {
   const [availability, setAvailability] = useState({}); 
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [memberForm, setMemberForm] = useState({ name: '', accessCode: '' });
@@ -47,40 +46,17 @@ export const useAppLogic = () => {
     return () => unsub();
   }, []);
 
-  // Admin Init
   useEffect(() => {
     const initAdmin = async () => {
         try {
             const adminRef = doc(db, "users", "admin");
             const adminSnap = await getDoc(adminRef);
             if (!adminSnap.exists()) {
-                await setDoc(adminRef, { 
-                    id: "admin", 
-                    name: "Admin", 
-                    accessCode: "12345678", 
-                    role: "admin", 
-                    createdAt: serverTimestamp() 
-                });
+                await setDoc(adminRef, { id: "admin", name: "Admin", accessCode: "12345678", role: "admin", createdAt: serverTimestamp() });
             }
         } catch (error) { console.error(error); }
     };
     initAdmin();
-  }, []);
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('smartScheduleUser');
-    // لو المستخدم مسجل، نشوف هل هو شاف الـ onboarding ولا لسه
-    if (savedUser) { 
-        const u = JSON.parse(savedUser);
-        setUser(u); 
-        // لو أدمن يدخل علطول، لو عضو جديد يروح للـ onboarding الأول
-        const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-        if (u.role === 'admin' || hasSeenOnboarding) {
-            setView('app');
-        } else {
-            setView('onboarding');
-        }
-    }
   }, []);
 
   useEffect(() => {
@@ -93,6 +69,36 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
+  // ✅ تعديل: فحص حالة التوجيه (Onboarding)
+  useEffect(() => {
+    const savedUser = localStorage.getItem('smartScheduleUser');
+    if (savedUser) { 
+        const u = JSON.parse(savedUser);
+        setUser(u);
+        checkRedirect(u);
+    }
+  }, [availability]); // نراقب availability عشان نعرف لو اختار مواعيد
+
+  const checkRedirect = async (userData) => {
+      // لو أدمن: يدخل علطول
+      if (userData.role === 'admin') {
+          setView('app');
+          return;
+      }
+
+      // لو عضو: نشوف هل اختار مواعيد قبل كده؟
+      // بنجيب الداتا المحدثة من الـ state لو متاحة، أو نعتمد على اللي في الذاكرة مؤقتاً
+      const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
+      const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+
+      if (hasSubmitted || hasSeenOnboarding) {
+          setView('app');
+      } else {
+          setView('onboarding');
+      }
+  };
+
   const handleLogin = async (inputCode) => {
     if (!inputCode) return showToast("يرجى إدخال الكود", "error");
     setIsLoading(true);
@@ -103,14 +109,7 @@ export const useAppLogic = () => {
             const userData = snap.docs[0].data();
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
-            
-            // توجيه ذكي: لو أدمن يروح للتطبيق، لو عضو يروح للشرح
-            if (userData.role === 'admin') {
-                setView('app');
-            } else {
-                setView('onboarding'); // روح لصفحة الشرح
-            }
-            
+            checkRedirect(userData);
             setActiveTab('home');
             showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
         } else { 
@@ -126,10 +125,41 @@ export const useAppLogic = () => {
 
   const handleLogout = () => { 
       localStorage.removeItem('smartScheduleUser'); 
-      localStorage.removeItem('hasSeenOnboarding'); // عشان لما يرجع يشوف الشرح تاني لو حبيت
+      localStorage.removeItem('hasSeenOnboarding'); 
       setUser(null); 
       setView('landing'); 
       setActiveTab('home'); 
+  };
+
+  // ✅ دالة جديدة: توليد كود فريد (لإعادة التعيين)
+  const getUniqueCode = async () => {
+      let isUnique = false;
+      let finalCode = '';
+      while (!isUnique) {
+          finalCode = generateAccessCode();
+          const q = query(collection(db, "users"), where("accessCode", "==", finalCode));
+          const snap = await getDocs(q);
+          if (snap.empty) isUnique = true;
+      }
+      return finalCode;
+  };
+
+  // ✅ دالة جديدة: إعادة تعيين الكود (Regenerate)
+  const regenerateUserCode = async (targetUserId) => {
+      triggerConfirm("تغيير الكود", "سيتم إلغاء الكود القديم وإنشاء كود جديد. هل أنت متأكد؟", async () => {
+          try {
+              const newCode = await getUniqueCode();
+              await setDoc(doc(db, "users", targetUserId), { accessCode: newCode }, { merge: true });
+              
+              // تحديث الواجهة فوراً
+              if (user.id === targetUserId) {
+                  const updatedUser = { ...user, accessCode: newCode };
+                  setUser(updatedUser);
+                  localStorage.setItem('smartScheduleUser', JSON.stringify(updatedUser));
+              }
+              showToast("تم تغيير الكود بنجاح");
+          } catch (e) { showToast("حدث خطأ", "error"); }
+      }, true);
   };
 
   const handleSaveMember = async () => {
@@ -137,17 +167,15 @@ export const useAppLogic = () => {
     try {
         const id = editingMemberId || generateId();
         let finalCode = memberForm.accessCode;
+        
+        // لو عضو جديد، نولد كود جديد
         if (!editingMemberId && !finalCode) {
-            let isUnique = false;
-            while (!isUnique) {
-                finalCode = generateAccessCode();
-                const q = query(collection(db, "users"), where("accessCode", "==", finalCode));
-                const snap = await getDocs(q);
-                if (snap.empty) isUnique = true;
-            }
+            finalCode = await getUniqueCode();
         }
+
         const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
         const userData = { id, name: memberForm.name, accessCode: finalCode, role: role, createdAt: serverTimestamp() };
+        
         await setDoc(doc(db, "users", id), userData, { merge: true });
         if (user && user.id === id) { setUser(userData); localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); }
         setIsModalOpen(false);
@@ -202,6 +230,6 @@ export const useAppLogic = () => {
     showToast, triggerConfirm,
     handleLogin, handleLogout, handleSaveMember, deleteMember, saveSettings,
     analyzeSchedule, bookMeeting, cancelMeeting, resetAllAvailability,
-    finishOnboarding // دالة إنهاء الشرح
+    finishOnboarding, regenerateUserCode
   };
 };

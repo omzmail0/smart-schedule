@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, ThumbsUp, ArrowLeft } from 'lucide-react';
+import { Calendar, CheckCircle2, ThumbsUp, ArrowLeft, ArrowRight } from 'lucide-react';
 import Button from './Button';
 
 const OnboardingScreen = ({ onFinish, settings, user }) => {
@@ -31,6 +31,10 @@ const OnboardingScreen = ({ onFinish, settings, user }) => {
     }
   };
 
+  const handleBack = () => {
+      if (step > 0) setStep(step - 1);
+  };
+
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
       
@@ -53,14 +57,21 @@ const OnboardingScreen = ({ onFinish, settings, user }) => {
             </p>
         </div>
 
-        {/* Button */}
-        <Button 
-            onClick={handleNext} 
-            style={{ backgroundColor: settings.primaryColor }} 
-            className="w-full h-16 text-lg text-white rounded-2xl shadow-xl hover:scale-[1.02] transition-transform"
-        >
-            {step === steps.length - 1 ? 'فهمت، يلا نبدأ' : 'التالي'} <ArrowLeft size={20} className="mr-2"/>
-        </Button>
+        {/* Buttons */}
+        <div className="flex gap-3">
+            {step > 0 && (
+                <button onClick={handleBack} className="w-14 h-16 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                    <ArrowRight size={24}/>
+                </button>
+            )}
+            <Button 
+                onClick={handleNext} 
+                style={{ backgroundColor: settings.primaryColor }} 
+                className="flex-1 h-16 text-lg text-white rounded-2xl shadow-xl hover:scale-[1.02] transition-transform"
+            >
+                {step === steps.length - 1 ? 'فهمت، يلا نبدأ' : 'التالي'} <ArrowLeft size={20} className="mr-2"/>
+            </Button>
+        </div>
       </div>
 
     </div>

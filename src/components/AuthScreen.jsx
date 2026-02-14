@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, ArrowRight, ShieldCheck } from 'lucide-react';
+import { KeyRound, ArrowRight, ShieldAlert } from 'lucide-react';
 import Button from './Button';
 
 const AuthScreen = ({ onLogin, settings, onShowToast }) => {
@@ -48,11 +48,15 @@ const AuthScreen = ({ onLogin, settings, onShowToast }) => {
             </Button>
           </form>
 
-          {/* التنبيه */}
-          <div className="text-center opacity-60 hover:opacity-100 transition-opacity">
-             <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
-                <ShieldCheck size={14}/> نسيت الكود؟ تواصل مع مسؤول الفريق
-             </p>
+          {/* التنبيه المحسن */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-start gap-3">
+             <div className="bg-red-50 p-2 rounded-full text-red-500 shrink-0"><ShieldAlert size={18}/></div>
+             <div>
+                <h4 className="font-bold text-gray-800 text-sm mb-1">واجهت مشكلة؟</h4>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                    إذا فقدت الكود أو نسيت الرقم، تواصل فوراً مع <strong>مشرف الفريق</strong> ليقوم بإعادة إرساله لك.
+                </p>
+             </div>
           </div>
           
       </div>

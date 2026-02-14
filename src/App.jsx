@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
-import OnboardingScreen from './components/OnboardingScreen'; // صفحة الشرح الجديدة
+import OnboardingScreen from './components/OnboardingScreen';
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
@@ -22,7 +22,6 @@ export default function App() {
 
   const openAddModal = () => { logic.setMemberForm({ name: '', accessCode: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
   const openEditModal = (member) => { logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
-  const openEditProfile = () => { logic.setMemberForm({ name: logic.user.name, accessCode: logic.user.accessCode }); logic.setEditingMemberId(logic.user.id); logic.setIsModalOpen(true); };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -37,7 +36,6 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {/* التوجيه الجديد */}
       {logic.view === 'landing' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onShowToast={logic.showToast} />
       ) : logic.view === 'onboarding' ? (
@@ -60,10 +58,28 @@ export default function App() {
                 />
             )}
             
-            {logic.activeTab === 'members' && <MembersTab user={logic.user} members={logic.members} availability={logic.availability} openAddModal={openAddModal} openEditModal={openEditModal} deleteMember={logic.deleteMember} setInspectMember={logic.setInspectMember} />}
+            {logic.activeTab === 'members' && (
+                <MembersTab 
+                    user={logic.user} 
+                    members={logic.members} 
+                    availability={logic.availability} 
+                    openAddModal={openAddModal} 
+                    openEditModal={openEditModal} 
+                    deleteMember={logic.deleteMember} 
+                    setInspectMember={logic.setInspectMember}
+                    regenerateUserCode={logic.regenerateUserCode} // ✅ تمرير الدالة هنا
+                />
+            )}
             {logic.activeTab === 'settings' && logic.user.role === 'admin' && <SettingsTab settings={logic.settings} setSettings={logic.setSettings} saveSettings={logic.saveSettings} resetAllAvailability={logic.resetAllAvailability} />}
             {logic.activeTab === 'analysis' && <AnalysisTab settings={logic.settings} analyzeSchedule={logic.analyzeSchedule} analysisResult={logic.analysisResult} bookMeeting={logic.bookMeeting} />}
-            {logic.activeTab === 'profile' && <ProfileTab user={logic.user} settings={logic.settings} openEditProfile={openEditProfile} handleLogout={logic.handleLogout} />}
+            {logic.activeTab === 'profile' && (
+                <ProfileTab 
+                    user={logic.user} 
+                    settings={logic.settings} 
+                    handleLogout={logic.handleLogout} 
+                    regenerateUserCode={logic.regenerateUserCode} // ✅ تمرير الدالة هنا
+                />
+            )}
           </div>
           
           <MemberModal isOpen={logic.isModalOpen} onClose={() => logic.setIsModalOpen(false)} isEditing={!!logic.editingMemberId} form={logic.memberForm} setForm={logic.setMemberForm} onSave={logic.handleSaveMember} primaryColor={logic.settings.primaryColor} />

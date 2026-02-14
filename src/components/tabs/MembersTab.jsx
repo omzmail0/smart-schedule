@@ -1,7 +1,7 @@
 import React from 'react';
-import { UserPlus, Pencil, Trash2, Copy, Check } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Copy, Check, Eye, RefreshCw } from 'lucide-react';
 
-const MembersTab = ({ user, members, availability, openAddModal, openEditModal, deleteMember, setInspectMember }) => {
+const MembersTab = ({ user, members, availability, openAddModal, openEditModal, deleteMember, setInspectMember, regenerateUserCode }) => {
   const [copiedId, setCopiedId] = React.useState(null);
 
   const copyCode = (code, id) => {
@@ -36,6 +36,8 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
           </div>
       ) : members.map(m => {
         const status = getMemberStatus(m.id);
+        const hasData = status.text === 'تم التحديد';
+
         return (
           <div key={m.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3 shadow-sm">
             <div className="flex justify-between items-start">
@@ -50,6 +52,10 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                 {/* أزرار التحكم */}
                 {user.role === 'admin' && (
                     <div className="flex gap-1">
+                    {/* زر رؤية المواعيد */}
+                    {hasData && (
+                        <button onClick={() => setInspectMember(m)} className="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors" title="رؤية المواعيد"><Eye size={14}/></button>
+                    )}
                     <button onClick={() => openEditModal(m)} className="w-8 h-8 flex items-center justify-center bg-gray-50 text-gray-500 rounded-lg hover:bg-blue-50 hover:text-blue-500 transition-colors"><Pencil size={14}/></button>
                     <button onClick={() => deleteMember(m.id)} className="w-8 h-8 flex items-center justify-center bg-gray-50 text-gray-500 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
                     </div>
@@ -59,9 +65,7 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
             {/* منطقة الكود */}
             {user.role === 'admin' && (
                 <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center border border-gray-100">
-                    <div className="text-xs text-gray-400 font-bold">كود الدخول:</div>
-                    <div className="flex items-center gap-3">
-                        <span className="font-mono font-black text-gray-700 text-lg tracking-widest">{m.accessCode}</span>
+                    <div className="flex items-center gap-2">
                         <button 
                             onClick={() => copyCode(m.accessCode, m.id)} 
                             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${copiedId === m.id ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'}`}
@@ -69,7 +73,13 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                         >
                             {copiedId === m.id ? <Check size={14}/> : <Copy size={14}/>}
                         </button>
+                        <span className="font-mono font-black text-gray-700 text-lg tracking-widest">{m.accessCode}</span>
                     </div>
+                    
+                    {/* زر تغيير الكود */}
+                    <button onClick={() => regenerateUserCode(m.id)} className="text-[10px] text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors" title="توليد كود جديد">
+                        <RefreshCw size={12}/> تغيير الكود
+                    </button>
                 </div>
             )}
           </div>
