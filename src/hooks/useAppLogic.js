@@ -72,33 +72,55 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // ✅ الإصلاح الجذري لمشكلة الإشعار المعلق
-  // شلنا الاعتماد على [availability] وخليناه يشتغل مرة واحدة بس عند التحميل
+  // فحص التوجيه عند فتح الموقع
   useEffect(() => {
     const checkUserStatus = async () => {
         const savedUser = localStorage.getItem('smartScheduleUser');
         if (savedUser) { 
             const u = JSON.parse(savedUser);
             setUser(u);
-            
-            // فحص لمرة واحدة فقط وبدون إظهار إشعار
             if (u.role === 'admin') {
                 setView('app');
             } else {
-                const userAvailDoc = await getDoc(doc(db, "availability", u.id));
-                const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
-                const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-
-                if (hasSubmitted || hasSeenOnboarding) {
-                    setView('app');
-                } else {
-                    setView('onboarding');
-                }
+                // نمرر false عشان مايظهرش توست عند الريفريش
+                checkRedirect(u, false); 
             }
         }
     };
     checkUserStatus();
-  }, []); // ✅ المصفوفة فارغة = يشتغل مرة واحدة بس
+  }, []);
+
+  // ✅ الدالة المعدلة: التحقق من كل الشروط لتخطي الـ Onboarding
+  const checkRedirect = async (userData, shouldShowToast = true) => {
+      if (userData.role === 'admin') {
+          setView('app');
+          if(shouldShowToast) showToast(`مرحباً بك يا مدير`);
+          return;
+      }
+
+      // 1. هل العضو جاوب قبل كدة؟
+      const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
+      const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
+      
+      // 2. هل شاف الشرح قبل كدة؟
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+
+      // 3. هل فيه اجتماع محجوز؟ (تخطي الشرح لو فيه اجتماع)
+      const meetingsSnap = await getDocs(collection(db, "meetings"));
+      const isMeetingBooked = !meetingsSnap.empty;
+
+      // 4. هل فيه مواعيد متاحة أصلاً؟ (تخطي الشرح لو مفيش مواعيد)
+      const adminDoc = await getDoc(doc(db, "availability", "admin"));
+      const hasAdminSlots = adminDoc.exists() && adminDoc.data().slots && adminDoc.data().slots.length > 0;
+
+      // القرار النهائي
+      if (hasSubmitted || hasSeenOnboarding || isMeetingBooked || !hasAdminSlots) {
+          setView('app');
+          if(shouldShowToast) showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
+      } else {
+          setView('onboarding');
+      }
+  };
 
   const handleLogin = async (inputCode) => {
     if (!inputCode) return showToast("يرجى إدخال الكود", "error");
@@ -111,23 +133,9 @@ export const useAppLogic = () => {
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             
-            // التوجيه اليدوي (هنا بس نظهر الترحيب)
-            if (userData.role === 'admin') {
-                setView('app');
-                showToast(`مرحباً بك يا مدير`);
-            } else {
-                // فحص سريع عند الدخول
-                const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
-                const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
-                const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-
-                if (hasSubmitted || hasSeenOnboarding) {
-                    setView('app');
-                    showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
-                } else {
-                    setView('onboarding');
-                }
-            }
+            // استدعاء دالة التوجيه الذكية
+            checkRedirect(userData, true);
+            
             setActiveTab('home');
         } else { 
             showToast("الكود غير صحيح", "error"); 
