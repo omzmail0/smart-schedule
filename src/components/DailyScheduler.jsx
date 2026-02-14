@@ -5,7 +5,7 @@ import AdminScheduler from './scheduler/AdminScheduler';
 import MemberWizard from './scheduler/MemberWizard';
 import MemberSummary from './scheduler/MemberSummary';
 
-const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], onShowToast, onTriggerConfirm, onLogout }) => {
+const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, bookedSlots = [], onShowToast, onTriggerConfirm, onLogout, onEditingStateChange }) => {
   const [selected, setSelected] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
@@ -22,15 +22,20 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
              if (data.status === 'active' || data.status === 'busy') {
                  setIsSubmitted(true);
                  setIsBusy(data.status === 'busy');
+                 // لو البيانات وصلت ومحفوظة، يبقى احنا مش بنعدل
+                 if(onEditingStateChange) onEditingStateChange(false);
              } else {
                  setIsSubmitted(false);
                  setIsBusy(false);
+                 // لو مفيش حالة محفوظة، يبقى احنا في وضع التعديل (أو الإدخال لأول مرة)
+                 if(onEditingStateChange) onEditingStateChange(true);
              }
          }
       } else if (!docSnapshot.exists() && !hasUnsavedChanges) {
          setSelected([]); 
          setIsSubmitted(false);
          setIsBusy(false);
+         if(onEditingStateChange) onEditingStateChange(true);
       }
     });
     return () => unsub();
@@ -52,6 +57,10 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       setIsSubmitted(true);
       setIsBusy(status === 'busy');
       if (onSave) onSave();
+      
+      // ✅ لما يحفظ، نرجع حالة التعديل لـ false
+      if(onEditingStateChange) onEditingStateChange(false);
+      
       onShowToast(role === 'admin' ? "تم الحفظ بنجاح" : "تم إرسال ردك بنجاح");
     } catch (e) { onShowToast("حدث خطأ أثناء الحفظ", "error"); }
   };
@@ -60,17 +69,23 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
         try {
             await setDoc(doc(db, "availability", userId), { slots: [], status: 'busy', updatedAt: serverTimestamp() }, { merge: true });
             setSelected([]); setHasUnsavedChanges(false); setIsSubmitted(true); setIsBusy(true);
+            if(onEditingStateChange) onEditingStateChange(false);
             onShowToast("تم تسجيل أنك مشغول");
         } catch(e) { onShowToast(e.message, "error"); }
   };
 
-  // --- التوجيه حسب الدور والحالة ---
+  const handleEdit = () => {
+      setIsSubmitted(false);
+      // ✅ لما يدوس تعديل، نفعّل وضع التعديل
+      if(onEditingStateChange) onEditingStateChange(true);
+  };
+
   if (role === 'admin') {
       return <AdminScheduler selected={selected} onToggleSlot={toggleSlot} onSave={saveChanges} hasChanges={hasUnsavedChanges} themeColor={themeColor} bookedSlots={bookedSlots} />;
   }
 
   if (isSubmitted && bookedSlots.length === 0) { 
-      return <MemberSummary selected={selected} isBusy={isBusy} themeColor={themeColor} onEdit={() => setIsSubmitted(false)} onLogout={onLogout} />;
+      return <MemberSummary selected={selected} isBusy={isBusy} themeColor={themeColor} onEdit={handleEdit} onLogout={onLogout} />;
   }
 
   return <MemberWizard 
@@ -82,7 +97,7 @@ const DailyScheduler = ({ userId, role, adminSlots = [], onSave, themeColor, boo
       onMarkBusy={markBusy} 
       themeColor={themeColor} 
       onTriggerConfirm={onTriggerConfirm} 
-      setSelected={setSelected} // ✅ تم تمرير دالة التحديث (الإضافة الوحيدة)
+      setSelected={setSelected} 
   />;
 };
 

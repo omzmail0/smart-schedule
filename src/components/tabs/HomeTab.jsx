@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Info, CheckCircle2, Calendar, Zap, Clock, Timer, Trash2, CalendarClock, Eye } from 'lucide-react';
+import { Info, CheckCircle2, Calendar, Zap, Clock, Timer, Trash2, CalendarClock, Eye, Edit2 } from 'lucide-react';
 import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
 const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
+  // ... (نفس الكود السابق للميتينج كارد)
   const [timeLeft, setTimeLeft] = useState('');
   const [status, setStatus] = useState('upcoming');
 
@@ -73,23 +74,28 @@ const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
 };
 
 const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
-  // 1. هل فيه اجتماع محجوز؟
-  const isMeetingBooked = meetings && meetings.length > 0;
+  // حالة محلية عشان نعرف العضو بيعدل ولا لأ
+  const [isEditingMode, setIsEditingMode] = useState(false);
 
-  // 2. هل المستخدم ده بعت رده؟
+  const isMeetingBooked = meetings && meetings.length > 0;
   const userStatus = availability ? availability[user.id] : null;
   const hasSubmitted = userStatus && (userStatus.status === 'busy' || (userStatus.slots && userStatus.slots.length > 0));
 
-  // 3. الشرط الذكي للتنبيه
-  const showAlert = user.role !== 'admin' && !isMeetingBooked && !hasSubmitted;
+  // لو داس تعديل، اعتبره كأنه مبعتش (عشان التنبيه يظهر والعنوان يتغير)
+  const effectiveSubmitted = hasSubmitted && !isEditingMode;
 
-  // 4. تحديد أيقونة وعنوان القسم ديناميكياً
+  const showAlert = user.role !== 'admin' && !isMeetingBooked && !effectiveSubmitted;
+
   const getHeaderContent = () => {
       if (user.role === 'admin') {
           return { icon: <Zap size={18} style={{ color: settings.primaryColor, fill: `${settings.primaryColor}20` }} />, text: "الأوقات المتاحة للفريق" };
       }
       if (isMeetingBooked) {
           return { icon: <Calendar size={18} style={{ color: settings.primaryColor }} />, text: "الجدول الزمني" };
+      }
+      // لو بيعدل، غير العنوان
+      if (isEditingMode) {
+          return { icon: <Edit2 size={18} style={{ color: settings.primaryColor }} />, text: "تعديل المواعيد" };
       }
       if (hasSubmitted) {
           return { icon: <Eye size={18} style={{ color: settings.primaryColor }} />, text: "ملخص ردك" };
@@ -102,7 +108,6 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
         
-        {/* التنبيه الذكي */}
         {showAlert && (
           <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden animate-in zoom-in-95 duration-500">
              <div className="absolute top-0 left-0 p-4 opacity-10"><Info size={80} className="text-blue-600"/></div>
@@ -111,7 +116,6 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
           </div>
         )}
         
-        {/* قسم الاجتماعات المؤكدة */}
         {isMeetingBooked && (
            <div className="space-y-3">
              <h3 className="font-bold text-gray-800 text-sm px-1 flex items-center gap-2">
@@ -124,9 +128,8 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
            </div>
         )}
         
-        {/* القسم الرئيسي (الجدول) */}
         <div>
-           <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2">
+           <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2 transition-all duration-300">
                {header.icon}
                {header.text}
            </h3>
@@ -139,6 +142,8 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
                 onShowToast={showToast} 
                 onTriggerConfirm={triggerConfirm}
                 onLogout={onLogout}
+                // تمرير دالة التحكم في حالة التعديل
+                onEditingStateChange={setIsEditingMode}
            />
         </div>
     </div>
