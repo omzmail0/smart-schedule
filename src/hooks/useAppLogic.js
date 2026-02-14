@@ -18,7 +18,6 @@ export const useAppLogic = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
-  // ✅ تغييرنا شكل الفورم ليشيل الباسورد واسم المستخدم
   const [memberForm, setMemberForm] = useState({ name: '', accessCode: '' });
   
   const [inspectMember, setInspectMember] = useState(null);
@@ -31,7 +30,6 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // 1. جلب الإعدادات
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { setSettings(docSnap.data()); } 
@@ -41,7 +39,6 @@ export const useAppLogic = () => {
     return () => unsubSettings();
   }, []);
 
-  // 2. جلب مواعيد الأدمن
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
         if (doc.exists()) setAdminSlots(doc.data().slots || []); 
@@ -50,32 +47,33 @@ export const useAppLogic = () => {
     return () => unsub();
   }, []);
 
-  // 3. تهيئة حساب الأدمن (تلقائياً بكود ثابت أو عشوائي لأول مرة)
+  // تهيئة الأدمن تلقائياً لو مش موجود
   useEffect(() => {
     const initAdmin = async () => {
-        const adminRef = doc(db, "users", "admin");
-        const adminSnap = await getDoc(adminRef);
-        if (!adminSnap.exists()) {
-            // كود افتراضي للأدمن لأول مرة (يمكن تغييره لاحقاً)
-            await setDoc(adminRef, { 
-                id: "admin", 
-                name: "Admin", 
-                accessCode: "12345678", // كود مبدئي
-                role: "admin", 
-                createdAt: serverTimestamp() 
-            });
+        try {
+            const adminRef = doc(db, "users", "admin");
+            const adminSnap = await getDoc(adminRef);
+            if (!adminSnap.exists()) {
+                await setDoc(adminRef, { 
+                    id: "admin", 
+                    name: "Admin", 
+                    accessCode: "12345678", 
+                    role: "admin", 
+                    createdAt: serverTimestamp() 
+                });
+            }
+        } catch (error) {
+            console.error("Error initializing admin:", error);
         }
     };
     initAdmin();
   }, []);
 
-  // 4. استرجاع الجلسة
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) { setUser(JSON.parse(savedUser)); setView('app'); }
   }, []);
 
-  // 5. جلب البيانات عند تسجيل الدخول
   useEffect(() => {
     if (!user) return;
     const unsubMembers = onSnapshot(collection(db, "users"), (snap) => setMembers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin')));
@@ -89,17 +87,14 @@ export const useAppLogic = () => {
   const onStart = () => setView('login');
   const onBackToLanding = () => setView('landing');
 
-  // ✅ دالة تسجيل الدخول الجديدة (بالكود فقط)
+  // ✅ تصحيح الخطأ هنا
   const handleLogin = async (inputCode) => {
     if (!inputCode) return showToast("يرجى إدخال الكود", "error");
     
     setIsLoading(true);
     try {
-        // البحث عن المستخدم صاحب هذا الكود
         const q = query(collection(db, "users"), where("accessCode", "==", inputCode));
-        constVkSnap = await getDocs(q); // تصحيح اسم المتغير
-
-        const snap = await getDocs(q);
+        const snap = await getDocs(q); // ✅ تم التصحيح هنا
 
         if (!snap.empty) {
             const userData = snap.docs[0].data();
@@ -109,9 +104,10 @@ export const useAppLogic = () => {
             setActiveTab('home');
             showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
         } else { 
-            showToast("الكود غير صحيح، تأكد منه وحاول مرة أخرى", "error"); 
+            showToast("الكود غير صحيح", "error"); 
         }
     } catch (error) { 
+        console.error("Login Error:", error); // عشان نشوف الخطأ في الكونسول لو حصل
         showToast("حدث خطأ في الاتصال", "error"); 
     } finally {
         setIsLoading(false);
@@ -120,7 +116,6 @@ export const useAppLogic = () => {
 
   const handleLogout = () => { localStorage.removeItem('smartScheduleUser'); setUser(null); setView('landing'); setActiveTab('home'); };
 
-  // ✅ دالة حفظ/إضافة العضو (توليد كود تلقائي)
   const handleSaveMember = async () => {
     if (!memberForm.name) return showToast("يرجى كتابة الاسم", "error");
 
@@ -128,7 +123,6 @@ export const useAppLogic = () => {
         const id = editingMemberId || generateId();
         let finalCode = memberForm.accessCode;
 
-        // لو عضو جديد ومعندوش كود، نولد كود ونتأكد إنه مش مكرر
         if (!editingMemberId && !finalCode) {
             let isUnique = false;
             while (!isUnique) {
@@ -144,22 +138,20 @@ export const useAppLogic = () => {
         const userData = { 
             id, 
             name: memberForm.name, 
-            accessCode: finalCode, // حفظ الكود
+            accessCode: finalCode, 
             role: role, 
             createdAt: serverTimestamp() 
         };
 
         await setDoc(doc(db, "users", id), userData, { merge: true });
         
-        // تحديث البيانات المحلية لو بحدث بياناتي
         if (user && user.id === id) { setUser(userData); localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); }
 
         setIsModalOpen(false);
-        showToast(editingMemberId ? "تم تحديث البيانات" : "تمت إضافة العضو وتوليد الكود");
+        showToast(editingMemberId ? "تم تحديث البيانات" : "تمت إضافة العضو والكود");
     } catch (e) { showToast(e.message, "error"); }
   };
 
-  // باقي الدوال كما هي...
   const deleteMember = (memberId) => { 
       triggerConfirm("حذف العضو", "سيتم حذف العضو وجداوله. هل أنت متأكد؟", async () => {
         await deleteDoc(doc(db, "users", memberId)); await deleteDoc(doc(db, "availability", memberId)); showToast("تم الحذف بنجاح");
