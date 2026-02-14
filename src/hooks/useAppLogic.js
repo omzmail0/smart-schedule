@@ -23,7 +23,11 @@ export const useAppLogic = () => {
   const [toast, setToast] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
 
-  const showToast = (message, type = 'success') => setToast({ message, type });
+  // تحديث دالة التوست عشان تضمن إن مفيش توست قديم معلق
+  const showToast = (message, type = 'success') => {
+      setToast(null); // تصفير القديم أولاً
+      setTimeout(() => setToast({ message, type }), 100);
+  };
 
   const triggerConfirm = (title, message, action, isDestructive = false) => {
       setConfirmData({ title, message, action, isDestructive });
@@ -69,33 +73,33 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // ✅ تعديل: فحص حالة التوجيه (Onboarding)
+  // فحص التوجيه (تشغيل التوست هنا للمستخدمين العائدين)
   useEffect(() => {
     const savedUser = localStorage.getItem('smartScheduleUser');
     if (savedUser) { 
         const u = JSON.parse(savedUser);
         setUser(u);
-        checkRedirect(u);
+        checkRedirect(u, false); // false = لا تظهر توست هنا عشان ميتكررش مع الـ Reload
     }
-  }, [availability]); // نراقب availability عشان نعرف لو اختار مواعيد
+  }, [availability]); 
 
-  const checkRedirect = async (userData) => {
-      // لو أدمن: يدخل علطول
+  const checkRedirect = async (userData, shouldShowToast = true) => {
       if (userData.role === 'admin') {
           setView('app');
+          if(shouldShowToast) showToast(`مرحباً بك يا مدير`);
           return;
       }
 
-      // لو عضو: نشوف هل اختار مواعيد قبل كده؟
-      // بنجيب الداتا المحدثة من الـ state لو متاحة، أو نعتمد على اللي في الذاكرة مؤقتاً
       const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
       const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
       const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
 
       if (hasSubmitted || hasSeenOnboarding) {
           setView('app');
+          if(shouldShowToast) showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
       } else {
           setView('onboarding');
+          // هنا مش هنظهر توست عشان ميزعجش المستخدم وهو بيقرأ
       }
   };
 
@@ -109,18 +113,21 @@ export const useAppLogic = () => {
             const userData = snap.docs[0].data();
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
-            checkRedirect(userData);
+            
+            // التوجيه مع إظهار الترحيب
+            checkRedirect(userData, true);
             setActiveTab('home');
-            showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
         } else { 
             showToast("الكود غير صحيح", "error"); 
         }
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); } finally { setIsLoading(false); }
   };
 
+  // إظهار الترحيب عند إنهاء الشرح
   const finishOnboarding = () => {
       localStorage.setItem('hasSeenOnboarding', 'true');
       setView('app');
+      if(user) showToast(`يلا نبدأ يا ${user.name.split(' ')[0]} 🚀`);
   };
 
   const handleLogout = () => { 
@@ -131,7 +138,6 @@ export const useAppLogic = () => {
       setActiveTab('home'); 
   };
 
-  // ✅ دالة جديدة: توليد كود فريد (لإعادة التعيين)
   const getUniqueCode = async () => {
       let isUnique = false;
       let finalCode = '';
@@ -144,14 +150,12 @@ export const useAppLogic = () => {
       return finalCode;
   };
 
-  // ✅ دالة جديدة: إعادة تعيين الكود (Regenerate)
   const regenerateUserCode = async (targetUserId) => {
-      triggerConfirm("تغيير الكود", "سيتم إلغاء الكود القديم وإنشاء كود جديد. هل أنت متأكد؟", async () => {
+      triggerConfirm("تغيير الكود", "سيتم إلغاء الكود القديم نهائياً. هل أنت متأكد؟", async () => {
           try {
               const newCode = await getUniqueCode();
               await setDoc(doc(db, "users", targetUserId), { accessCode: newCode }, { merge: true });
               
-              // تحديث الواجهة فوراً
               if (user.id === targetUserId) {
                   const updatedUser = { ...user, accessCode: newCode };
                   setUser(updatedUser);
@@ -167,15 +171,11 @@ export const useAppLogic = () => {
     try {
         const id = editingMemberId || generateId();
         let finalCode = memberForm.accessCode;
-        
-        // لو عضو جديد، نولد كود جديد
         if (!editingMemberId && !finalCode) {
             finalCode = await getUniqueCode();
         }
-
         const role = (editingMemberId === 'admin' || (user && user.id === id && user.role === 'admin')) ? 'admin' : 'member';
         const userData = { id, name: memberForm.name, accessCode: finalCode, role: role, createdAt: serverTimestamp() };
-        
         await setDoc(doc(db, "users", id), userData, { merge: true });
         if (user && user.id === id) { setUser(userData); localStorage.setItem('smartScheduleUser', JSON.stringify(userData)); }
         setIsModalOpen(false);
