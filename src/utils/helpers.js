@@ -2,7 +2,6 @@
 
 export const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// ✅ دالة جديدة لتوليد كود رقمي من 8 خانات
 export const generateAccessCode = () => {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 };
@@ -16,7 +15,7 @@ export const getStartOfWeek = (date = new Date()) => {
   return new Date(d.setDate(diff));
 };
 
-export constQKWeekDays = (startDate) => { // تم تصحيح الاسم getWeekDays
+export const getWeekDays = (startDate) => {
   const dates = [];
   const start = new Date(startDate);
   for (let i = 0; i < 7; i++) {
@@ -26,17 +25,6 @@ export constQKWeekDays = (startDate) => { // تم تصحيح الاسم getWeekD
   }
   return dates;
 };
-// تصحيح بسيط لاسم الدالة للتأكد
-export const getWeekDays = (startDate) => {
-    const dates = [];
-    const start = new Date(startDate);
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      dates.push(d);
-    }
-    return dates;
-  };
 
 export const getSlotId = (date, hour) => {
   const d = new Date(date);
