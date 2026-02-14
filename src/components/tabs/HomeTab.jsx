@@ -4,7 +4,6 @@ import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
 const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
-  // ... (نفس الكود السابق للكارد بدون تغيير)
   const [timeLeft, setTimeLeft] = useState('');
   const [status, setStatus] = useState('upcoming');
 
@@ -76,14 +75,15 @@ const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
 const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
   const [isEditingMode, setIsEditingMode] = useState(false);
 
+  // التحقق من وجود مواعيد من المشرف
+  const hasAdminSlots = adminSlots && adminSlots.length > 0;
+
   const isMeetingBooked = meetings && meetings.length > 0;
   const userStatus = availability ? availability[user.id] : null;
   const hasSubmitted = userStatus && (userStatus.status === 'busy' || (userStatus.slots && userStatus.slots.length > 0));
 
-  // التنبيه يظهر لو مش أدمن && مفيش اجتماع && (لسه مبعتش أصلاً أو بيعدل على حاجة كان باعتها)
-  // بس عشان نكون دقيقين: التنبيه يظهر لو لسه مبعتش.
-  // لو بعت ورجع يعدل، التنبيه يظهر برضو عشان يفكره يكمل.
-  const showAlert = user.role !== 'admin' && !isMeetingBooked && (!hasSubmitted || isEditingMode);
+  // ✅ تعديل شرط التنبيه: لازم يكون فيه مواعيد متاحة (hasAdminSlots)
+  const showAlert = user.role !== 'admin' && !isMeetingBooked && (!hasSubmitted || isEditingMode) && hasAdminSlots;
 
   const getHeaderContent = () => {
       if (user.role === 'admin') {
@@ -92,21 +92,19 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
       if (isMeetingBooked) {
           return { icon: <Calendar size={18} style={{ color: settings.primaryColor }} />, text: "الجدول الزمني" };
       }
-      
-      // ✅ التعديل هنا: "تعديل المواعيد" تظهر بس لو كان باعت قبل كدة وبيعدل دلوقتي
       if (isEditingMode && hasSubmitted) {
           return { icon: <Edit2 size={18} style={{ color: settings.primaryColor }} />, text: "تعديل المواعيد" };
       }
-      
       if (hasSubmitted && !isEditingMode) {
           return { icon: <Eye size={18} style={{ color: settings.primaryColor }} />, text: "ملخص ردك" };
       }
-      
-      // الحالة الافتراضية (أول مرة أو بيعدل ومش باعت قبل كدة)
       return { icon: <Clock size={18} style={{ color: settings.primaryColor }} />, text: "حدد أوقات فراغك" };
   };
 
   const header = getHeaderContent();
+
+  // ✅ شرط لإظهار العنوان: يظهر دائماً للمدير، أو لو فيه اجتماع، أو لو المستخدم بعت رده، أو لو فيه مواعيد متاحة
+  const shouldShowHeader = user.role === 'admin' || isMeetingBooked || hasSubmitted || hasAdminSlots;
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
@@ -132,10 +130,13 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
         )}
         
         <div>
-           <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2 transition-all duration-300">
-               {header.icon}
-               {header.text}
-           </h3>
+           {/* ✅ إخفاء العنوان لو مفيش مواعيد متاحة (للعضو الجديد) */}
+           {shouldShowHeader && (
+               <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2 transition-all duration-300">
+                   {header.icon}
+                   {header.text}
+               </h3>
+           )}
            <DailyScheduler 
                 userId={user.id} 
                 role={user.role} 
