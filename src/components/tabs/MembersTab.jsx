@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { UserPlus, Pencil, Trash2, Copy, Check, Eye, RefreshCw, Share2, X } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Copy, Check, Eye, RefreshCw, FileText } from 'lucide-react';
 
 const MembersTab = ({ user, members, availability, openAddModal, openEditModal, deleteMember, setInspectMember, regenerateUserCode }) => {
   const [copiedId, setCopiedId] = useState(null);
-  const [isShareMode, setIsShareMode] = useState(false); // ✅ حالة وضع المشاركة
+  const [isReportCopied, setIsReportCopied] = useState(false);
 
   const copyCode = (code, id) => {
     navigator.clipboard.writeText(code);
@@ -33,6 +33,41 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
       categorizedMembers[key].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   });
 
+  // ✅ الدالة المعدلة مع النصوص الجديدة
+  const generateAndCopyReport = () => {
+      const today = new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+      
+      // 1. تعديل العنوان
+      let report = `📅 *حالة اجتماع الفريق - ${today}*\n\n`;
+
+      if (categorizedMembers.submitted.length > 0) {
+          report += `✅ *تم التحديد (${categorizedMembers.submitted.length}):*\n`;
+          // 2. الاسم بيظهر كامل أصلاً (m.name)
+          categorizedMembers.submitted.forEach(m => report += `• ${m.name}\n`);
+          report += `\n`;
+      }
+
+      if (categorizedMembers.busy.length > 0) {
+          report += `⛔ *مشغولين (${categorizedMembers.busy.length}):*\n`;
+          categorizedMembers.busy.forEach(m => report += `• ${m.name}\n`);
+          report += `\n`;
+      }
+
+      if (categorizedMembers.pending.length > 0) {
+          report += `⏳ *في الانتظار (${categorizedMembers.pending.length}):*\n`;
+          categorizedMembers.pending.forEach(m => report += `• ${m.name}\n`);
+          
+          // 3. الرسالة العفوية في الآخر
+          report += `\n💡 *يا شباب اللي لسه مخلصش، ياريت يدخل ع الموقع بالكود اللي بعتهوله في الخاص ويختار المواعيد المناسبة معاه عشان نلحق نعتمد المعاد.*\n`;
+      }
+
+      report += `\nرابط الموقع 👇\nhttps://smart-schedule.vercel.app/`;
+
+      navigator.clipboard.writeText(report);
+      setIsReportCopied(true);
+      setTimeout(() => setIsReportCopied(false), 3000);
+  };
+
   const renderSection = (title, list, colorClass) => {
       if (list.length === 0) return null;
       return (
@@ -59,23 +94,21 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
       const config = statusConfig[statusKey];
 
       return (
-        <div className={`bg-white p-4 rounded-2xl border ${isShareMode ? 'border-transparent shadow-sm' : 'border-gray-100 shadow-sm'} flex flex-col gap-3 transition-all`}>
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-center">
                 <div className="flex gap-3 items-center">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base ${isShareMode ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center font-bold text-gray-500 text-base border border-gray-100">
                         {m.name[0]}
                     </div>
                     <div>
                         <div className="font-bold text-gray-800 text-sm">{m.name}</div>
-                        {/* في وضع المشاركة، بنخلي حالة 'لم يحدد' بلون أحمر خفيف عشان تبان كتحذير */}
-                        <div className={`text-[9px] px-2 py-0.5 rounded-md w-fit mt-1 font-bold ${isShareMode && statusKey === 'pending' ? 'bg-orange-100 text-orange-700' : config.color}`}>
+                        <div className={`text-[9px] px-2 py-0.5 rounded-md w-fit mt-1 font-bold ${config.color}`}>
                             {config.text}
                         </div>
                     </div>
                 </div>
                 
-                {/* إخفاء أزرار التحكم في وضع المشاركة */}
-                {!isShareMode && user.role === 'admin' && (
+                {user.role === 'admin' && (
                     <div className="flex gap-1">
                         {statusKey === 'submitted' && (
                             <button onClick={() => setInspectMember(m)} className="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"><Eye size={14}/></button>
@@ -86,8 +119,7 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                 )}
             </div>
             
-            {/* إخفاء الكود في وضع المشاركة */}
-            {!isShareMode && user.role === 'admin' && (
+            {user.role === 'admin' && (
                 <div className="bg-gray-50 rounded-xl p-2 flex justify-between items-center border border-gray-100 mt-1">
                     <div className="flex items-center gap-2 pl-2">
                         <button onClick={() => copyCode(m.accessCode, m.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${copiedId === m.id ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-gray-300'}`}>
@@ -105,32 +137,25 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
   };
 
   return (
-    <div className={`animate-in fade-in space-y-4 pb-20 ${isShareMode ? 'pt-2' : ''}`}>
+    <div className="animate-in fade-in space-y-4 pb-20">
       
-      {/* الهيدر: بيختلف حسب الوضع */}
       <div className="flex justify-between items-center px-1 mb-2">
-        {isShareMode ? (
-            <div className="flex items-center justify-between w-full bg-blue-600 text-white p-3 rounded-2xl shadow-lg">
-                <span className="font-bold text-sm pr-2">📸 وضع لقطة الشاشة</span>
-                <button onClick={() => setIsShareMode(false)} className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors">
-                    إلغاء <X size={14}/>
+        <h2 className="font-bold text-lg text-gray-800">الأعضاء ({members.length})</h2>
+        {user.role === 'admin' && (
+            <div className="flex gap-2">
+                <button 
+                    onClick={generateAndCopyReport} 
+                    className={`border px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${isReportCopied ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    title="نسخ تقرير حالة الفريق"
+                >
+                    {isReportCopied ? <Check size={14}/> : <FileText size={14}/>}
+                    {isReportCopied ? 'تم النسخ' : 'تقرير'}
+                </button>
+
+                <button onClick={openAddModal} className="bg-black text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-80 transition-all shadow-md active:scale-95">
+                    <UserPlus size={14}/> إضافة
                 </button>
             </div>
-        ) : (
-            <>
-                <h2 className="font-bold text-lg text-gray-800">الأعضاء ({members.length})</h2>
-                {user.role === 'admin' && (
-                    <div className="flex gap-2">
-                        {/* زر تفعيل وضع المشاركة */}
-                        <button onClick={() => setIsShareMode(true)} className="bg-white border border-gray-200 text-gray-600 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-gray-50 transition-all shadow-sm" title="وضع المشاركة (إخفاء الأكواد)">
-                            <Share2 size={14}/>
-                        </button>
-                        <button onClick={openAddModal} className="bg-black text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-80 transition-all shadow-md active:scale-95">
-                            <UserPlus size={14}/> إضافة
-                        </button>
-                    </div>
-                )}
-            </>
         )}
       </div>
 
@@ -140,18 +165,11 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
              <p className="text-gray-400 font-bold text-sm">القائمة فارغة!</p>
           </div>
       ) : (
-          <div className={isShareMode ? "bg-gray-50 p-4 rounded-3xl border border-gray-200" : ""}>
+          <>
             {renderSection('أنجزوا المهمة', categorizedMembers.submitted, 'bg-green-100 text-green-800')}
             {renderSection('مشغولين', categorizedMembers.busy, 'bg-red-100 text-red-800')}
             {renderSection('في الانتظار', categorizedMembers.pending, 'bg-gray-100 text-gray-600')}
-            
-            {/* توقيع بسيط في وضع المشاركة */}
-            {isShareMode && (
-                <div className="text-center mt-6 pt-4 border-t border-gray-200">
-                    <p className="text-[10px] text-gray-400 font-bold tracking-widest">تحديث الحالة</p>
-                </div>
-            )}
-          </div>
+          </>
       )}
     </div>
   );
