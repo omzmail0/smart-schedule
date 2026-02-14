@@ -4,7 +4,7 @@ import { formatDate, formatTime } from '../../utils/helpers';
 import DailyScheduler from '../DailyScheduler';
 
 const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
-  // ... (نفس الكود السابق للميتينج كارد)
+  // ... (نفس الكود السابق للكارد بدون تغيير)
   const [timeLeft, setTimeLeft] = useState('');
   const [status, setStatus] = useState('upcoming');
 
@@ -74,17 +74,16 @@ const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
 };
 
 const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
-  // حالة محلية عشان نعرف العضو بيعدل ولا لأ
   const [isEditingMode, setIsEditingMode] = useState(false);
 
   const isMeetingBooked = meetings && meetings.length > 0;
   const userStatus = availability ? availability[user.id] : null;
   const hasSubmitted = userStatus && (userStatus.status === 'busy' || (userStatus.slots && userStatus.slots.length > 0));
 
-  // لو داس تعديل، اعتبره كأنه مبعتش (عشان التنبيه يظهر والعنوان يتغير)
-  const effectiveSubmitted = hasSubmitted && !isEditingMode;
-
-  const showAlert = user.role !== 'admin' && !isMeetingBooked && !effectiveSubmitted;
+  // التنبيه يظهر لو مش أدمن && مفيش اجتماع && (لسه مبعتش أصلاً أو بيعدل على حاجة كان باعتها)
+  // بس عشان نكون دقيقين: التنبيه يظهر لو لسه مبعتش.
+  // لو بعت ورجع يعدل، التنبيه يظهر برضو عشان يفكره يكمل.
+  const showAlert = user.role !== 'admin' && !isMeetingBooked && (!hasSubmitted || isEditingMode);
 
   const getHeaderContent = () => {
       if (user.role === 'admin') {
@@ -93,13 +92,17 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
       if (isMeetingBooked) {
           return { icon: <Calendar size={18} style={{ color: settings.primaryColor }} />, text: "الجدول الزمني" };
       }
-      // لو بيعدل، غير العنوان
-      if (isEditingMode) {
+      
+      // ✅ التعديل هنا: "تعديل المواعيد" تظهر بس لو كان باعت قبل كدة وبيعدل دلوقتي
+      if (isEditingMode && hasSubmitted) {
           return { icon: <Edit2 size={18} style={{ color: settings.primaryColor }} />, text: "تعديل المواعيد" };
       }
-      if (hasSubmitted) {
+      
+      if (hasSubmitted && !isEditingMode) {
           return { icon: <Eye size={18} style={{ color: settings.primaryColor }} />, text: "ملخص ردك" };
       }
+      
+      // الحالة الافتراضية (أول مرة أو بيعدل ومش باعت قبل كدة)
       return { icon: <Clock size={18} style={{ color: settings.primaryColor }} />, text: "حدد أوقات فراغك" };
   };
 
@@ -142,7 +145,6 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
                 onShowToast={showToast} 
                 onTriggerConfirm={triggerConfirm}
                 onLogout={onLogout}
-                // تمرير دالة التحكم في حالة التعديل
                 onEditingStateChange={setIsEditingMode}
            />
         </div>
