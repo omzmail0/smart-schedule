@@ -24,9 +24,8 @@ export const useAppLogic = () => {
   const [confirmData, setConfirmData] = useState(null);
 
   const showToast = (message, type = 'success') => {
-      setToast(null); 
-      // تأخير بسيط لضمان إعادة الريندر
-      setTimeout(() => setToast({ message, type }), 50);
+      setToast(null);
+      setTimeout(() => setToast({ message, type }), 100);
   };
 
   const triggerConfirm = (title, message, action, isDestructive = false) => {
@@ -73,43 +72,33 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // ✅ تعديل هام: منطق التوجيه عشان التوست ميظهرش كتير
+  // ✅ الإصلاح الجذري لمشكلة الإشعار المعلق
+  // شلنا الاعتماد على [availability] وخليناه يشتغل مرة واحدة بس عند التحميل
   useEffect(() => {
-    const savedUser = localStorage.getItem('smartScheduleUser');
-    // ننفذ التوجيه فقط لو المستخدم لسه في وضع الـ onboarding أو landing
-    // لكن لو هو جوه التطبيق already (app)، مش هنعمل حاجة عشان التوست ميتكررش مع كل تحديث للداتا
-    if (savedUser) { 
-        const u = JSON.parse(savedUser);
-        setUser(u);
-        
-        // لو الـ view لسه مش app، نفذ فحص التوجيه
-        if (view !== 'app') {
-            checkRedirect(u, false); // false = متظهرش توست تلقائي مع الريفريش
+    const checkUserStatus = async () => {
+        const savedUser = localStorage.getItem('smartScheduleUser');
+        if (savedUser) { 
+            const u = JSON.parse(savedUser);
+            setUser(u);
+            
+            // فحص لمرة واحدة فقط وبدون إظهار إشعار
+            if (u.role === 'admin') {
+                setView('app');
+            } else {
+                const userAvailDoc = await getDoc(doc(db, "availability", u.id));
+                const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
+                const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+
+                if (hasSubmitted || hasSeenOnboarding) {
+                    setView('app');
+                } else {
+                    setView('onboarding');
+                }
+            }
         }
-    }
-  }, [availability]); // الاعتماد على availability ضروري عشان نعرف هو جاوب ولا لأ
-
-  const checkRedirect = async (userData, shouldShowToast = true) => {
-      // لو المستخدم حالياً جوه التطبيق، اطلع بره الدالة عشان ميعملش رندر وتوست تاني
-      if (view === 'app') return;
-
-      if (userData.role === 'admin') {
-          setView('app');
-          if(shouldShowToast) showToast(`مرحباً بك يا مدير`);
-          return;
-      }
-
-      const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
-      const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
-      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-
-      if (hasSubmitted || hasSeenOnboarding) {
-          setView('app');
-          if(shouldShowToast) showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
-      } else {
-          setView('onboarding');
-      }
-  };
+    };
+    checkUserStatus();
+  }, []); // ✅ المصفوفة فارغة = يشتغل مرة واحدة بس
 
   const handleLogin = async (inputCode) => {
     if (!inputCode) return showToast("يرجى إدخال الكود", "error");
@@ -122,8 +111,23 @@ export const useAppLogic = () => {
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             
-            // هنا بنمرر true عشان ده تسجيل دخول صريح، فمحتاجين ترحيب
-            checkRedirect(userData, true);
+            // التوجيه اليدوي (هنا بس نظهر الترحيب)
+            if (userData.role === 'admin') {
+                setView('app');
+                showToast(`مرحباً بك يا مدير`);
+            } else {
+                // فحص سريع عند الدخول
+                const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
+                const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
+                const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+
+                if (hasSubmitted || hasSeenOnboarding) {
+                    setView('app');
+                    showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
+                } else {
+                    setView('onboarding');
+                }
+            }
             setActiveTab('home');
         } else { 
             showToast("الكود غير صحيح", "error"); 
