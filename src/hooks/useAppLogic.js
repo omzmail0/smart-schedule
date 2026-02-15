@@ -1,11 +1,9 @@
-// ... (الاستيرادات زي ما هي)
 import { useState, useEffect } from 'react';
 import { db } from '../utils/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
-import { generateId, generateAccessCode, isPastTime } from '../utils/helpers';
+import { generateId, generateAccessCode, isPastTime, formatDate, formatTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
-  // ... (الـ States زي ما هي)
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
@@ -34,7 +32,6 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // ... (كل الـ useEffects زي ما هي بالظبط)
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { setSettings(docSnap.data()); } 
@@ -132,7 +129,6 @@ export const useAppLogic = () => {
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); } finally { setIsLoading(false); }
   };
 
-  // ... (باقي الدوال: finishOnboarding, handleLogout, getUniqueCode, regenerateUserCode, handleSaveMember, deleteMember, saveSettings)
   const finishOnboarding = () => {
       localStorage.setItem('hasSeenOnboarding', 'true');
       setView('app');
@@ -199,42 +195,53 @@ export const useAppLogic = () => {
 
   const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم التحديث"); };
 
-  // ✅ التعديل هنا: تصنيف الغائبين (analyzeSchedule)
+  // ✅ التحليل (النسخة النهائية مع اللوجيك الجديد)
   const analyzeSchedule = () => {
     if (adminSlots.length === 0) return showToast("حدد الأوقات المتاحة أولاً", "error");
     const bookedSlotIds = meetings.map(m => m.slot);
     
+    // 1. حساب عدد المشاركين (المقام)
+    // يشمل: من اختاروا مواعيد + من قالوا مشغولين
+    const respondedMembersCount = members.filter(m => {
+        const userAvail = availability[m.id];
+        return userAvail && (userAvail.status === 'busy' || (userAvail.slots && userAvail.slots.length > 0));
+    }).length;
+
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
       
-      const availableMembers = [];
-      const conflictedMembers = []; // دخلوا بس الميعاد ده مش مناسب ليهم
-      const pendingMembers = []; // مدخلوش أصلاً
+      const availableNames = [];
+      const conflictedNames = [];
+      const pendingNames = [];
 
       members.forEach(m => {
           const userAvail = availability[m.id];
-          
-          // هل العضو جاوب؟ (يعني عنده slots أو status='busy')
           const hasResponded = userAvail && (userAvail.status === 'busy' || (userAvail.slots && userAvail.slots.length > 0));
 
           if (!hasResponded) {
-              pendingMembers.push(m.name); // لسه مجاوبش
+              pendingNames.push(m.name); // لم يشارك
           } else if ((userAvail.slots || []).includes(slot)) {
-              availableMembers.push(m.name); // متاح في الميعاد ده
+              availableNames.push(m.name); // متاح
           } else {
-              conflictedMembers.push(m.name); // جاوب بس الميعاد ده مش مناسب ليه
+              // شارك، ولكن (اختار غيره أو مشغول) -> غير مناسب
+              conflictedNames.push(m.name); 
           }
       });
 
+      // ترتيب الأسماء أبجدياً
+      availableNames.sort((a,b) => a.localeCompare(b, 'ar'));
+      conflictedNames.sort((a,b) => a.localeCompare(b, 'ar'));
+      pendingNames.sort((a,b) => a.localeCompare(b, 'ar'));
+
       return { 
           slot, 
-          count: availableMembers.length, 
-          total: members.length, 
-          names: availableMembers,
-          conflictedNames: conflictedMembers,
-          pendingNames: pendingMembers
+          count: availableNames.length, 
+          total: respondedMembersCount, // النسبة = المتاحين / المشاركين
+          names: availableNames,
+          conflictedNames,
+          pendingNames
       };
     }).filter(Boolean);
 
@@ -242,9 +249,15 @@ export const useAppLogic = () => {
     setAnalysisResult(suggestions);
   };
 
-  const bookMeeting = (slot) => { 
-      triggerConfirm("تأكيد الحجز", "اعتماد الموعد؟", async () => {
-        const id = generateId(); await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); setAnalysisResult(null); showToast("تم الاعتماد");
+  const bookMeeting = (slot, conflictedNames = []) => { 
+      const msg = `📣 *بصوا بقى يا جماعة..*\n\nتوكلنا على الله واعتمدنا ميعاد الاجتماع الجاي:\n\n🗓 ${formatDate(new Date(slot.split('-').slice(0,3).join('-')))}\n⏱ ${formatTime(slot.split('-')[3])}\n\n${conflictedNames.length > 0 ? `👀 *بالنسبة لـ (${conflictedNames.join('، ')}):*\nمعلش بقى المرة دي جت عليكم عشان خاطر الأغلبية 😄.. حاولوا تحضرو لو عرفتوا،\n\n` : ''}يلا نجهز نفسنا.. أشوفكم على خير 👋`;
+
+      triggerConfirm("تأكيد الحجز", "سيتم نسخ رسالة الاعتماد للمجموعة. هل أنت متأكد؟", async () => {
+        navigator.clipboard.writeText(msg); 
+        const id = generateId(); 
+        await setDoc(doc(db, "meetings", id), { id, slot, createdAt: serverTimestamp() }); 
+        setAnalysisResult(null); 
+        showToast("تم الاعتماد ونسخ الرسالة");
       });
   };
 

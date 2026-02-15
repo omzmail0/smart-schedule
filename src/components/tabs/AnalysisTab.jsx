@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, UserX, CheckCircle2, Copy, Check, FileText, Clock } from 'lucide-react';
+import { Star, UserX, CheckCircle2, Check, FileText, Clock } from 'lucide-react';
 import Button from '../Button';
 import { formatDate, formatTime } from '../../utils/helpers';
 
@@ -89,6 +89,7 @@ const AnalysisTab = ({ settings, analyzeSchedule, analysisResult, bookMeeting })
                                         {isPerfect && <span className="text-[9px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10}/> مثالي</span>}
                                     </div>
                                     <div className="text-xs text-gray-400 mt-1 font-medium">
+                                        {/* هنا النسبة مبنية على المشاركين فقط */}
                                         تطابق {percent}% ({res.count} من {res.total})
                                     </div>
                                 </div>
@@ -102,7 +103,7 @@ const AnalysisTab = ({ settings, analyzeSchedule, analysisResult, bookMeeting })
                                 </div>
                             </div>
 
-                            {/* الغائبين (غير مناسب) */}
+                            {/* غير مناسب (مشغولين + تعارض) */}
                             {!isPerfect && res.conflictedNames.length > 0 && (
                                 <div className="mb-2 bg-red-50/50 p-2 rounded-xl border border-red-50">
                                     <p className="text-[10px] font-bold text-red-400 flex items-center gap-1 mb-1">
@@ -114,7 +115,7 @@ const AnalysisTab = ({ settings, analyzeSchedule, analysisResult, bookMeeting })
                                 </div>
                             )}
 
-                            {/* لم يحددوا بعد */}
+                            {/* لم يحددوا */}
                             {!isPerfect && res.pendingNames.length > 0 && (
                                 <div className="mb-4 bg-gray-50 p-2 rounded-xl border border-gray-100">
                                     <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1 mb-1">
@@ -127,7 +128,7 @@ const AnalysisTab = ({ settings, analyzeSchedule, analysisResult, bookMeeting })
                             )}
 
                             <button 
-                                onClick={() => bookMeeting(res.slot)} 
+                                onClick={() => bookMeeting(res.slot, res.conflictedNames)} 
                                 className="w-full h-10 bg-gray-900 text-white rounded-xl text-xs font-bold shadow-md hover:bg-black transition-transform active:scale-95 flex items-center justify-center gap-2"
                             >
                                 اعتماد هذا الموعد
