@@ -34,7 +34,6 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
   });
 
   const generateAndCopyReport = () => {
-      // ✅ تعديل العنوان ليكون عام وبسيط
       let report = `📝 *متابعة تحديد مواعيد الاجتماع*\n\n`;
 
       if (categorizedMembers.submitted.length > 0) {
@@ -52,10 +51,11 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
       if (categorizedMembers.pending.length > 0) {
           report += `⏳ *في الانتظار (${categorizedMembers.pending.length}):*\n`;
           categorizedMembers.pending.forEach(m => report += `• ${m.name}\n`);
-          report += `\n💡 *يا شباب اللي لسه مخلصش، ياريت يدخل ع الموقع بالكود اللي بعتهوله في الخاص ويختار المواعيد المناسبة معاه عشان نلحق نعتمد المعاد.*\n`;
+          report += `\n💡 *يا شباب اللي لسه مخلصش، ياريت يدخل ع الموقع بالكود اللي بعتهوله في الخاص ويختار المواعيد المناسبة عشان نلحق نعتمد المعاد.*\n`;
       }
 
-      report += `\nرابط الموقع 👇\nhttps://smart-schedule.vercel.app/`;
+      // ✅ تم تصحيح الرابط
+      report += `\nرابط الموقع 👇\nhttps://smart-schedule-liart.vercel.app/`;
 
       navigator.clipboard.writeText(report);
       setIsReportCopied(true);
