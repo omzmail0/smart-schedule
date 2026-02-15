@@ -1,9 +1,11 @@
+// ... (الاستيرادات زي ما هي)
 import { useState, useEffect } from 'react';
 import { db } from '../utils/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { generateId, generateAccessCode, isPastTime } from '../utils/helpers';
 
 export const useAppLogic = () => {
+  // ... (الـ States زي ما هي)
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
@@ -32,6 +34,7 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
+  // ... (كل الـ useEffects زي ما هي بالظبط)
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { setSettings(docSnap.data()); } 
@@ -72,7 +75,6 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // فحص التوجيه عند فتح الموقع
   useEffect(() => {
     const checkUserStatus = async () => {
         const savedUser = localStorage.getItem('smartScheduleUser');
@@ -82,7 +84,6 @@ export const useAppLogic = () => {
             if (u.role === 'admin') {
                 setView('app');
             } else {
-                // نمرر false عشان مايظهرش توست عند الريفريش
                 checkRedirect(u, false); 
             }
         }
@@ -90,7 +91,6 @@ export const useAppLogic = () => {
     checkUserStatus();
   }, []);
 
-  // ✅ الدالة المعدلة: التحقق من كل الشروط لتخطي الـ Onboarding
   const checkRedirect = async (userData, shouldShowToast = true) => {
       if (userData.role === 'admin') {
           setView('app');
@@ -98,22 +98,14 @@ export const useAppLogic = () => {
           return;
       }
 
-      // 1. هل العضو جاوب قبل كدة؟
       const userAvailDoc = await getDoc(doc(db, "availability", userData.id));
       const hasSubmitted = userAvailDoc.exists() && (userAvailDoc.data().slots?.length > 0 || userAvailDoc.data().status === 'busy');
-      
-      // 2. هل شاف الشرح قبل كدة؟
       const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-
-      // 3. هل فيه اجتماع محجوز؟ (تخطي الشرح لو فيه اجتماع)
       const meetingsSnap = await getDocs(collection(db, "meetings"));
       const isMeetingBooked = !meetingsSnap.empty;
-
-      // 4. هل فيه مواعيد متاحة أصلاً؟ (تخطي الشرح لو مفيش مواعيد)
       const adminDoc = await getDoc(doc(db, "availability", "admin"));
       const hasAdminSlots = adminDoc.exists() && adminDoc.data().slots && adminDoc.data().slots.length > 0;
 
-      // القرار النهائي
       if (hasSubmitted || hasSeenOnboarding || isMeetingBooked || !hasAdminSlots) {
           setView('app');
           if(shouldShowToast) showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
@@ -132,10 +124,7 @@ export const useAppLogic = () => {
             const userData = snap.docs[0].data();
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
-            
-            // استدعاء دالة التوجيه الذكية
             checkRedirect(userData, true);
-            
             setActiveTab('home');
         } else { 
             showToast("الكود غير صحيح", "error"); 
@@ -143,6 +132,7 @@ export const useAppLogic = () => {
     } catch (error) { showToast("حدث خطأ في الاتصال", "error"); } finally { setIsLoading(false); }
   };
 
+  // ... (باقي الدوال: finishOnboarding, handleLogout, getUniqueCode, regenerateUserCode, handleSaveMember, deleteMember, saveSettings)
   const finishOnboarding = () => {
       localStorage.setItem('hasSeenOnboarding', 'true');
       setView('app');
@@ -174,7 +164,6 @@ export const useAppLogic = () => {
           try {
               const newCode = await getUniqueCode();
               await setDoc(doc(db, "users", targetUserId), { accessCode: newCode }, { merge: true });
-              
               if (user.id === targetUserId) {
                   const updatedUser = { ...user, accessCode: newCode };
                   setUser(updatedUser);
@@ -210,16 +199,45 @@ export const useAppLogic = () => {
 
   const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم التحديث"); };
 
+  // ✅ التعديل هنا: تصنيف الغائبين (analyzeSchedule)
   const analyzeSchedule = () => {
     if (adminSlots.length === 0) return showToast("حدد الأوقات المتاحة أولاً", "error");
     const bookedSlotIds = meetings.map(m => m.slot);
+    
     const suggestions = adminSlots.map(slot => {
       if (bookedSlotIds.includes(slot)) return null; 
       const [y, m, d, h] = slot.split('-');
       if (isPastTime(`${y}-${m}-${d}`, h)) return null;
-      const availableMembers = members.filter(m => (availability[m.id]?.slots || []).includes(slot));
-      return { slot, count: availableMembers.length, total: members.length, names: availableMembers.map(m => m.name) };
+      
+      const availableMembers = [];
+      const conflictedMembers = []; // دخلوا بس الميعاد ده مش مناسب ليهم
+      const pendingMembers = []; // مدخلوش أصلاً
+
+      members.forEach(m => {
+          const userAvail = availability[m.id];
+          
+          // هل العضو جاوب؟ (يعني عنده slots أو status='busy')
+          const hasResponded = userAvail && (userAvail.status === 'busy' || (userAvail.slots && userAvail.slots.length > 0));
+
+          if (!hasResponded) {
+              pendingMembers.push(m.name); // لسه مجاوبش
+          } else if ((userAvail.slots || []).includes(slot)) {
+              availableMembers.push(m.name); // متاح في الميعاد ده
+          } else {
+              conflictedMembers.push(m.name); // جاوب بس الميعاد ده مش مناسب ليه
+          }
+      });
+
+      return { 
+          slot, 
+          count: availableMembers.length, 
+          total: members.length, 
+          names: availableMembers,
+          conflictedNames: conflictedMembers,
+          pendingNames: pendingMembers
+      };
     }).filter(Boolean);
+
     suggestions.sort((a, b) => b.count - a.count);
     setAnalysisResult(suggestions);
   };
