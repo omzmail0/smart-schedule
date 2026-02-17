@@ -38,7 +38,6 @@ export const useAppLogic = () => {
             const data = docSnap.data();
             setSettings(data);
             
-            // طرد المستخدمين لو الموقع قفل فجأة وهم فاتحين
             const savedUser = localStorage.getItem('smartScheduleUser');
             const currentUser = savedUser ? JSON.parse(savedUser) : null;
             const isAdminPath = window.location.pathname === '/admin';
@@ -84,13 +83,22 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // منطق البداية والتوجيه
+  // ✅ منطق التوجيه والروابط
   useEffect(() => {
     const checkStart = async () => {
-        const isAdminPath = window.location.pathname === '/admin';
+        const path = window.location.pathname;
+        const isAdminPath = path === '/admin';
+        const isRoot = path === '/';
+        
+        // لو الرابط غريب -> 404
+        if (!isRoot && !isAdminPath) {
+            setView('404');
+            setIsLoading(false);
+            return;
+        }
+
         const savedUser = localStorage.getItem('smartScheduleUser');
         
-        // 1. لو داخل من رابط الأدمن
         if (isAdminPath) {
             if (savedUser) {
                 const u = JSON.parse(savedUser);
@@ -106,13 +114,11 @@ export const useAppLogic = () => {
             return;
         }
 
-        // 2. لو الموقع مغلق
         if (settings.isMaintenance) {
             setView('maintenance');
             return;
         }
 
-        // 3. مستخدم عادي والموقع مفتوح
         if (savedUser) { 
             const u = JSON.parse(savedUser);
             setUser(u);
@@ -163,14 +169,12 @@ export const useAppLogic = () => {
         if (!snap.empty) {
             const userData = snap.docs[0].data();
             
-            // تحقق: هل يحاول عضو عادي الدخول من بوابة الأدمن؟
             if (isAdminPath && userData.role !== 'admin') {
                 showToast("غير مسموح للأعضاء بالدخول من هنا", "error");
                 setIsLoading(false);
                 return;
             }
 
-            // تحقق: هل الموقع مغلق؟ (للأعضاء فقط)
             if (settings.isMaintenance && userData.role !== 'admin') {
                 setView('maintenance');
                 setIsLoading(false);
@@ -197,7 +201,6 @@ export const useAppLogic = () => {
       localStorage.removeItem('smartScheduleUser'); 
       localStorage.removeItem('hasSeenOnboarding'); 
       setUser(null); 
-      // لو كان أدمن يفضل في صفحة الدخول، لو عضو والموقع مغلق يروح لصفحة الإغلاق
       if (settings.isMaintenance && window.location.pathname !== '/admin') {
           setView('maintenance');
       } else {

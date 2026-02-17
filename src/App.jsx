@@ -4,6 +4,7 @@ import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import MaintenanceScreen from './components/MaintenanceScreen';
+import NotFound from './components/NotFound'; // تأكد إن الملف موجود
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
@@ -37,8 +38,10 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {/* التوجيه الجديد مع صفحة الصيانة */}
-      {logic.view === 'maintenance' ? (
+      {/* التوجيه الشامل */}
+      {logic.view === '404' ? (
+          <NotFound />
+      ) : logic.view === 'maintenance' ? (
           <MaintenanceScreen settings={logic.settings} />
       ) : logic.view === 'landing' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onShowToast={logic.showToast} />
