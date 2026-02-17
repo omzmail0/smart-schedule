@@ -8,7 +8,7 @@ export const useAppLogic = () => {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
-  const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null });
+  const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null, isMaintenance: false });
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
@@ -34,8 +34,20 @@ export const useAppLogic = () => {
 
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
-        if (docSnap.exists()) { setSettings(docSnap.data()); } 
-        else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null }); }
+        if (docSnap.exists()) { 
+            const data = docSnap.data();
+            setSettings(data);
+            
+            // طرد المستخدمين لو الموقع قفل فجأة وهم فاتحين
+            const savedUser = localStorage.getItem('smartScheduleUser');
+            const currentUser = savedUser ? JSON.parse(savedUser) : null;
+            const isAdminPath = window.location.pathname === '/admin';
+
+            if (data.isMaintenance && (!currentUser || currentUser.role !== 'admin') && !isAdminPath) {
+                setView('maintenance');
+            }
+        } 
+        else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null, isMaintenance: false }); }
         setIsLoading(false); 
     });
     return () => unsubSettings();
@@ -72,26 +84,54 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
+  // منطق البداية والتوجيه
   useEffect(() => {
-    const checkUserStatus = async () => {
+    const checkStart = async () => {
+        const isAdminPath = window.location.pathname === '/admin';
         const savedUser = localStorage.getItem('smartScheduleUser');
+        
+        // 1. لو داخل من رابط الأدمن
+        if (isAdminPath) {
+            if (savedUser) {
+                const u = JSON.parse(savedUser);
+                if (u.role === 'admin') {
+                    setUser(u);
+                    setView('app');
+                } else {
+                    setView('landing'); 
+                }
+            } else {
+                setView('landing');
+            }
+            return;
+        }
+
+        // 2. لو الموقع مغلق
+        if (settings.isMaintenance) {
+            setView('maintenance');
+            return;
+        }
+
+        // 3. مستخدم عادي والموقع مفتوح
         if (savedUser) { 
             const u = JSON.parse(savedUser);
             setUser(u);
-            if (u.role === 'admin') {
-                setView('app');
-            } else {
-                checkRedirect(u, false); 
-            }
+            checkRedirect(u, false); 
         }
     };
-    checkUserStatus();
-  }, []);
+    
+    if (!isLoading) checkStart();
+  }, [isLoading, settings.isMaintenance]); 
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
       if (userData.role === 'admin') {
           setView('app');
           if(shouldShowToast) showToast(`مرحباً بك يا مدير`);
+          return;
+      }
+
+      if (settings.isMaintenance) {
+          setView('maintenance');
           return;
       }
 
@@ -113,12 +153,30 @@ export const useAppLogic = () => {
 
   const handleLogin = async (inputCode) => {
     if (!inputCode) return showToast("يرجى إدخال الكود", "error");
+    
+    const isAdminPath = window.location.pathname === '/admin';
+    
     setIsLoading(true);
     try {
         const q = query(collection(db, "users"), where("accessCode", "==", inputCode));
         const snap = await getDocs(q);
         if (!snap.empty) {
             const userData = snap.docs[0].data();
+            
+            // تحقق: هل يحاول عضو عادي الدخول من بوابة الأدمن؟
+            if (isAdminPath && userData.role !== 'admin') {
+                showToast("غير مسموح للأعضاء بالدخول من هنا", "error");
+                setIsLoading(false);
+                return;
+            }
+
+            // تحقق: هل الموقع مغلق؟ (للأعضاء فقط)
+            if (settings.isMaintenance && userData.role !== 'admin') {
+                setView('maintenance');
+                setIsLoading(false);
+                return;
+            }
+
             setUser(userData);
             localStorage.setItem('smartScheduleUser', JSON.stringify(userData));
             checkRedirect(userData, true);
@@ -139,7 +197,12 @@ export const useAppLogic = () => {
       localStorage.removeItem('smartScheduleUser'); 
       localStorage.removeItem('hasSeenOnboarding'); 
       setUser(null); 
-      setView('landing'); 
+      // لو كان أدمن يفضل في صفحة الدخول، لو عضو والموقع مغلق يروح لصفحة الإغلاق
+      if (settings.isMaintenance && window.location.pathname !== '/admin') {
+          setView('maintenance');
+      } else {
+          setView('landing'); 
+      }
       setActiveTab('home'); 
   };
 
@@ -195,13 +258,10 @@ export const useAppLogic = () => {
 
   const saveSettings = async (newSettings) => { await setDoc(doc(db, "settings", "main"), newSettings); setSettings(newSettings); showToast("تم التحديث"); };
 
-  // ✅ التحليل (النسخة النهائية مع اللوجيك الجديد)
   const analyzeSchedule = () => {
     if (adminSlots.length === 0) return showToast("حدد الأوقات المتاحة أولاً", "error");
     const bookedSlotIds = meetings.map(m => m.slot);
     
-    // 1. حساب عدد المشاركين (المقام)
-    // يشمل: من اختاروا مواعيد + من قالوا مشغولين
     const respondedMembersCount = members.filter(m => {
         const userAvail = availability[m.id];
         return userAvail && (userAvail.status === 'busy' || (userAvail.slots && userAvail.slots.length > 0));
@@ -221,16 +281,14 @@ export const useAppLogic = () => {
           const hasResponded = userAvail && (userAvail.status === 'busy' || (userAvail.slots && userAvail.slots.length > 0));
 
           if (!hasResponded) {
-              pendingNames.push(m.name); // لم يشارك
+              pendingNames.push(m.name); 
           } else if ((userAvail.slots || []).includes(slot)) {
-              availableNames.push(m.name); // متاح
+              availableNames.push(m.name); 
           } else {
-              // شارك، ولكن (اختار غيره أو مشغول) -> غير مناسب
               conflictedNames.push(m.name); 
           }
       });
 
-      // ترتيب الأسماء أبجدياً
       availableNames.sort((a,b) => a.localeCompare(b, 'ar'));
       conflictedNames.sort((a,b) => a.localeCompare(b, 'ar'));
       pendingNames.sort((a,b) => a.localeCompare(b, 'ar'));
@@ -238,7 +296,7 @@ export const useAppLogic = () => {
       return { 
           slot, 
           count: availableNames.length, 
-          total: respondedMembersCount, // النسبة = المتاحين / المشاركين
+          total: respondedMembersCount, 
           names: availableNames,
           conflictedNames,
           pendingNames

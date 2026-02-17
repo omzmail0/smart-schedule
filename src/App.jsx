@@ -3,6 +3,7 @@ import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
+import MaintenanceScreen from './components/MaintenanceScreen';
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
@@ -36,7 +37,10 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {logic.view === 'landing' ? (
+      {/* التوجيه الجديد مع صفحة الصيانة */}
+      {logic.view === 'maintenance' ? (
+          <MaintenanceScreen settings={logic.settings} />
+      ) : logic.view === 'landing' ? (
           <AuthScreen onLogin={logic.handleLogin} settings={logic.settings} onShowToast={logic.showToast} />
       ) : logic.view === 'onboarding' ? (
           <OnboardingScreen onFinish={logic.finishOnboarding} settings={logic.settings} user={logic.user} />
@@ -51,7 +55,7 @@ export default function App() {
                     meetings={logic.meetings} 
                     adminSlots={logic.adminSlots} 
                     settings={logic.settings} 
-                    availability={logic.availability} // ✅ التعديل هنا: تمرير بيانات التوافر
+                    availability={logic.availability} 
                     showToast={logic.showToast} 
                     triggerConfirm={logic.triggerConfirm} 
                     onLogout={logic.handleLogout} 
