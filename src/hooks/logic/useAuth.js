@@ -19,17 +19,21 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
     initAdmin();
   }, []);
 
-  // Check Auth on Load
+  // Check Auth and Routing on Load
   useEffect(() => {
     const checkStart = async () => {
         const path = window.location.pathname;
         const isAdminPath = path === '/admin';
         const isRoot = path === '/';
         
+        // ✅ الشرط الصارم: لو 404، وقف أي حاجة تانية
         if (!isRoot && !isAdminPath) {
             ui.setView('404');
             return;
         }
+
+        // لو أنا في صفحة 404 أصلاً، متعملش حاجة تانية (عشان التحديثات متلغيش الـ 404)
+        if (ui.view === '404') return;
 
         const savedUser = localStorage.getItem('smartScheduleUser');
         
@@ -60,10 +64,14 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
         }
     };
     
-    if (!isLoadingSettings) checkStart();
+    // بنشغل الكود ده بس لما الإعدادات تكون جاهزة، أو لو احنا مش مستنيين إعدادات (زي حالة الـ 404)
+    if (!isLoadingSettings || window.location.pathname !== '/' && window.location.pathname !== '/admin') {
+        checkStart();
+    }
   }, [isLoadingSettings, settings.isMaintenance]);
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
+      // ... (نفس كود checkRedirect القديم)
       if (userData.role === 'admin') {
           ui.setView('app');
           if(shouldShowToast) ui.showToast(`مرحباً بك يا مدير`);
@@ -81,9 +89,10 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
       const meetingsSnap = await getDocs(collection(db, "meetings"));
       const isMeetingBooked = !meetingsSnap.empty;
       
-      // We assume adminSlots logic check is done here too via DB if needed, but for simplicity:
-      // If booked or submitted or seen onboarding -> App.
-      if (hasSubmitted || hasSeenOnboarding || isMeetingBooked) {
+      const adminDoc = await getDoc(doc(db, "availability", "admin"));
+      const hasAdminSlots = adminDoc.exists() && adminDoc.data().slots && adminDoc.data().slots.length > 0;
+
+      if (hasSubmitted || hasSeenOnboarding || isMeetingBooked || !hasAdminSlots) {
           ui.setView('app');
           if(shouldShowToast) ui.showToast(`أهلاً بك يا ${userData.name.split(' ')[0]}`);
       } else {
@@ -92,6 +101,7 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
   };
 
   const handleLogin = async (inputCode) => {
+    // ... (نفس كود handleLogin القديم)
     if (!inputCode) return ui.showToast("يرجى إدخال الكود", "error");
     
     const isAdminPath = window.location.pathname === '/admin';
@@ -122,6 +132,7 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
   };
 
   const handleLogout = () => { 
+      // ... (نفس كود handleLogout القديم)
       localStorage.removeItem('smartScheduleUser'); 
       localStorage.removeItem('hasSeenOnboarding'); 
       setUser(null); 
