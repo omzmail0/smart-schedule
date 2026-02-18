@@ -4,6 +4,7 @@ import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import MaintenanceScreen from './components/MaintenanceScreen';
+import ShutdownScreen from './components/ShutdownScreen'; // ✅ استيراد الملف الجديد
 import NotFound from './components/NotFound';
 import OfflineBanner from './components/common/OfflineBanner';
 import BottomNav from './components/BottomNav';
@@ -21,26 +22,19 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
-  // ❌ حذفنا useEffect الخط من هنا (موجود في useFirebase)
-  
   if (logic.view === '404') {
       return <NotFound />;
   }
 
+  // ✅ لو تم اكتشاف إن الداتا بيز مقفولة، اعرض شاشة التوقف فوراً
+  if (logic.settings.isShutdown) {
+      return <ShutdownScreen />;
+  }
+
   if (logic.isLoading) return <SplashScreen />;
 
-  // تعريف الدوال خارج الـ JSX لضمان الاستقرار
-  const openAddModal = () => { 
-      logic.setMemberForm({ name: '', accessCode: '' }); 
-      logic.setEditingMemberId(null); 
-      logic.setIsModalOpen(true); 
-  };
-  
-  const openEditModal = (member) => { 
-      logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); 
-      logic.setEditingMemberId(member.id); 
-      logic.setIsModalOpen(true); 
-  };
+  const openAddModal = () => { logic.setMemberForm({ name: '', accessCode: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
+  const openEditModal = (member) => { logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
