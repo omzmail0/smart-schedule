@@ -22,8 +22,8 @@ const ShutdownScreen = () => {
       </p>
 
       {/* رسالة المشرف في مكان مناسب */}
-      <div className="mt-16 pt-8 border-t border-gray-800 w-full max-w-[200px]">
-        <p className="text-[10px] font-mono text-red-900 font-bold tracking-[0.2em] uppercase">
+      <div className="mt-16 pt-8 border-t border-red-800 w-full max-w-[200px]">
+        <p className="text-[10px] font-mono text-white-900 font-bold tracking-[0.2em] uppercase">
           DATABASE RULES : LOCKED
         </p>
       </div>
