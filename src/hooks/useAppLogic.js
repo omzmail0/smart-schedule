@@ -8,7 +8,8 @@ export const useAppLogic = () => {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
-  const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null, isMaintenance: false });
+  // ✅ إضافة fontFamily للإعدادات الافتراضية
+  const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null, isMaintenance: false, fontFamily: 'Zain' });
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [adminSlots, setAdminSlots] = useState([]);
@@ -32,7 +33,14 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // ✅ حل مشكلة السكرول: اطلع لفوق كل ما التاب أو الفيو يتغير
+  // ✅ تطبيق الخط ديناميكياً على كامل الموقع
+  useEffect(() => {
+      if (settings.fontFamily) {
+          document.body.style.fontFamily = `"${settings.fontFamily}", sans-serif`;
+      }
+  }, [settings.fontFamily]);
+
+  // حل مشكلة السكرول
   useEffect(() => {
       window.scrollTo(0, 0);
   }, [activeTab, view]);
@@ -51,7 +59,7 @@ export const useAppLogic = () => {
                 setView('maintenance');
             }
         } 
-        else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null, isMaintenance: false }); }
+        else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null, isMaintenance: false, fontFamily: 'Zain' }); }
         setIsLoading(false); 
     });
     return () => unsubSettings();
