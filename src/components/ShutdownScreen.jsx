@@ -10,13 +10,7 @@ const ShutdownScreen = () => {
       </div>
 
       <h1 className="text-3xl font-black mb-2">تم إيقاف النظام</h1>
-      
-      <p className="text-gray-400 text-sm max-w-xs mx-auto leading-relaxed">
-وإغلاق الاتصال بقاعدة البيانات
-      </p>
-
-      <div className="mt-12 border-t border-gray-800 w-24"></div>
-    </div>
+    
   );
 };
 
