@@ -17,9 +17,9 @@ const ShutdownScreen = () => {
         تم إيقاف النظام
       </h1>
       
-      <p className="text-gray-400 font-medium text-sm leading-relaxed max-w-xs mx-auto">
-        نعتذر، الخدمة متوقفة تماماً في الوقت الحالي
-      </p>
+      <p className="text-[10px] font-mono text-white font-bold tracking-[0.2em] uppercase opacity-50">
+          DATABASE RULES : LOCKED
+        </p>
 
       {/* رسالة المشرف في مكان مناسب */}
       <div className="mt-16 pt-8 border-t border-red-800 w-full max-w-[200px]">
