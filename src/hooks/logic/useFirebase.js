@@ -22,6 +22,7 @@ export const useFirebase = (ui) => {
       }
   }, []);
 
+  // ✅ فقط جلب البيانات وتحديث الخط، بدون أي منطق توجيه
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) {
@@ -32,29 +33,6 @@ export const useFirebase = (ui) => {
             if (data.fontFamily) {
                 document.documentElement.style.setProperty('--app-font', `"${data.fontFamily}", sans-serif`);
             }
-
-            const path = window.location.pathname;
-            const is404 = path !== '/' && path !== '/admin';
-            
-            if (is404) return;
-
-            const savedUser = localStorage.getItem('smartScheduleUser');
-            const currentUser = savedUser ? JSON.parse(savedUser) : null;
-            const isAdminPath = path === '/admin';
-
-            // ✅ التعديل هنا: استخدمنا دالة (callback) بدل الاعتماد المباشر لمنع الـ Loop
-            // أو الأفضل: تجاهل قيمة view الحالية والاعتماد على المنطق فقط
-            if (data.isMaintenance && (!currentUser || currentUser.role !== 'admin') && !isAdminPath) {
-                ui.setView('maintenance');
-            } else if (!data.isMaintenance) {
-                // هنا كان الخطر: كنا بنشيك على ui.view الحالية
-                // الحل: نسيب الـ View يتغير براحته، ولو هو في Maintenance والموقع فتح، يرجع
-                // هنعتمد على فحص بسيط بدون إعادة الاشتراك
-                if (window.location.pathname === '/' || window.location.pathname === '/admin') {
-                     // Check redirection logic separately via another effect if needed
-                     // Or just leave it, users will refresh or use navigation
-                }
-            }
         } 
         else { 
             const defaults = { teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null, isMaintenance: false, fontFamily: 'Zain' };
@@ -64,16 +42,7 @@ export const useFirebase = (ui) => {
         setIsLoading(false); 
     });
     return () => unsub();
-  }, []); // ✅ شلنا [ui.view] تماماً لمنع الـ Loop
-
-  // ✅ تأثير منفصل للتعامل مع تغييرات الصيانة والـ View بأمان
-  useEffect(() => {
-      if (!settings.isMaintenance && ui.view === 'maintenance') {
-          const savedUser = localStorage.getItem('smartScheduleUser');
-          if (savedUser) ui.setView('app');
-          else ui.setView('landing');
-      }
-  }, [settings.isMaintenance, ui.view]); // ده آمن لأنه مش بيعمل setSettings
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 

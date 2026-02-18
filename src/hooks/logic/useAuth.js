@@ -19,6 +19,26 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
     initAdmin();
   }, []);
 
+  // ✅ مراقبة حالة الصيانة واليوزر الحالي
+  useEffect(() => {
+      // لو الموقع صيانة، واليوزر مش أدمن (أو مفيش يوزر)، وديه للصيانة
+      if (settings.isMaintenance) {
+          const isAdminPath = window.location.pathname === '/admin';
+          // لو هو أدمن ومسجل، خليه يعدي
+          if (user && user.role === 'admin') return;
+          // لو هو مش أدمن، ومش في صفحة الأدمن، اقفل عليه
+          if (!isAdminPath) {
+              ui.setView('maintenance');
+          }
+      } else {
+          // لو الموقع فتح وكان في الصيانة، رجعه
+          if (ui.view === 'maintenance') {
+              if (user) ui.setView('app');
+              else ui.setView('landing');
+          }
+      }
+  }, [settings.isMaintenance, user]); // يعتمد على اليوزر والإعدادات
+
   // Check Auth on Load
   useEffect(() => {
     const checkStart = async () => {
@@ -26,13 +46,11 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
         const isAdminPath = path === '/admin';
         const isRoot = path === '/';
         
-        // ✅ الأولوية القصوى: لو الرابط غلط، اعرض 404 واخرج فوراً
         if (!isRoot && !isAdminPath) {
             ui.setView('404');
             return;
         }
 
-        // لو احنا بالفعل في 404، متعملش حاجة تانية
         if (ui.view === '404') return;
 
         const savedUser = localStorage.getItem('smartScheduleUser');
@@ -52,9 +70,18 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
             return;
         }
 
+        // لو صيانة، ومفيش يوزر محفوظ كأدمن
         if (settings.isMaintenance) {
-            ui.setView('maintenance');
-            return;
+             if (savedUser) {
+                 const u = JSON.parse(savedUser);
+                 if (u.role === 'admin') {
+                     setUser(u);
+                     ui.setView('app'); // الأدمن يعدي
+                     return;
+                 }
+             }
+             ui.setView('maintenance');
+             return;
         }
 
         if (savedUser) { 
@@ -64,11 +91,10 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
         }
     };
     
-    // الانتظار حتى تحميل الإعدادات إلا لو كنا في مسار فرعي (عشان الـ 404 يظهر بسرعة)
     if (!isLoadingSettings || (window.location.pathname !== '/' && window.location.pathname !== '/admin')) {
         checkStart();
     }
-  }, [isLoadingSettings, settings.isMaintenance]);
+  }, [isLoadingSettings]); // شلنا settings.isMaintenance من هنا عشان الـ effect اللي فوق يتعامل معاها
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
       if (userData.role === 'admin') {
