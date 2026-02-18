@@ -4,7 +4,8 @@ import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import MaintenanceScreen from './components/MaintenanceScreen';
-import NotFound from './components/NotFound'; // تأكد إن الملف موجود
+import NotFound from './components/NotFound';
+import OfflineBanner from './components/common/OfflineBanner'; // ✅ استيراد
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
@@ -27,6 +28,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
+      {/* ✅ إضافة كاشف الإنترنت هنا ليعمل في كل الصفحات */}
+      <OfflineBanner />
+
       {logic.toast && <Toast message={logic.toast.message} type={logic.toast.type} onClose={() => logic.setToast(null)} />}
       
       <ConfirmModal 
@@ -38,7 +42,6 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {/* التوجيه الشامل */}
       {logic.view === '404' ? (
           <NotFound />
       ) : logic.view === 'maintenance' ? (
