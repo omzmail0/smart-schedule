@@ -28,11 +28,10 @@ const SettingsTab = ({ settings, setSettings, saveSettings, resetAllAvailability
       saveSettings({ ...settings, isMaintenance: newState });
   };
 
-  // ✅ دالة جديدة لتغيير الخط وتطبيقه فوراً للمعاينة
+  // ✅ دالة تغيير الخط للمعاينة الفورية
   const changeFont = (fontName) => {
       setSettings({ ...settings, fontFamily: fontName });
-      // تطبيق مباشر للمعاينة
-      document.body.style.fontFamily = `"${fontName}", sans-serif`;
+      document.documentElement.style.setProperty('--app-font', `"${fontName}", sans-serif`);
   };
 
   return (
@@ -66,14 +65,13 @@ const SettingsTab = ({ settings, setSettings, saveSettings, resetAllAvailability
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
             <div><label className="block text-sm font-bold text-gray-500 mb-2">اسم الفريق</label><input className="w-full h-12 px-4 bg-gray-50 rounded-xl font-bold text-gray-700 outline-none focus:ring-2" style={{ '--tw-ring-color': settings.primaryColor }} value={settings.teamName} onChange={e => setSettings({...settings, teamName: e.target.value})} /></div>
             
-            {/* قسم اختيار الخط */}
             <div>
                 <label className="block text-sm font-bold text-gray-500 mb-2 flex items-center gap-1"><Type size={16}/> نوع الخط</label>
                 <div className="grid grid-cols-2 gap-2">
                     {fonts.map(font => (
                         <button 
                             key={font.name}
-                            onClick={() => changeFont(font.name)} // ✅ استخدام الدالة الجديدة
+                            onClick={() => changeFont(font.name)} // ✅ المعاينة الفورية
                             className={`h-12 rounded-xl text-sm font-bold border-2 transition-all ${settings.fontFamily === font.name ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-600 hover:border-gray-200'}`}
                             style={{ fontFamily: font.name }}
                         >

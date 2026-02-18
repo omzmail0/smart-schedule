@@ -5,13 +5,20 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* ✅ المتغير الأساسي للخط */
+    --app-font: 'Zain', sans-serif;
+  }
+
   body {
     @apply bg-gray-50 text-gray-800;
     direction: rtl;
+    /* ✅ تطبيق المتغير على الصفحة كلها */
+    font-family: var(--app-font);
   }
 }
 
-/* إخفاء شريط التمرير (Scrollbar) */
+/* إخفاء شريط التمرير */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -20,7 +27,7 @@
   scrollbar-width: none;
 }
 
-/* --- أنيميشن التنقلات السلس (Page Transition) --- */
+/* الأنيميشن */
 @keyframes pageEnter {
   0% {
     opacity: 0;
@@ -37,7 +44,6 @@
   will-change: transform, opacity;
 }
 
-/* --- أنيميشن شاشة التحميل --- */
 @keyframes loading-bar {
   0% { transform: translateX(100%); }
   50% { transform: translateX(0%); }
@@ -50,7 +56,6 @@
   height: 100%;
 }
 
-/* حركة النبض البطيئة للوجو */
 @keyframes bounce-slow {
   0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
   50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }

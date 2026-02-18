@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // ✅ تأكدنا من استيراد useEffect
+import React, { useEffect } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
@@ -21,10 +21,10 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
-  // ✅ هذا هو الحل: تطبيق الخط فوراً عند تغير الإعدادات
+  // ✅ تطبيق الخط فوراً عند فتح التطبيق
   useEffect(() => {
     if (logic.settings.fontFamily) {
-      document.body.style.fontFamily = `"${logic.settings.fontFamily}", sans-serif`;
+      document.documentElement.style.setProperty('--app-font', `"${logic.settings.fontFamily}", sans-serif`);
     }
   }, [logic.settings.fontFamily]);
 
