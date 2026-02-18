@@ -32,6 +32,11 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
+  // ✅ حل مشكلة السكرول: اطلع لفوق كل ما التاب أو الفيو يتغير
+  useEffect(() => {
+      window.scrollTo(0, 0);
+  }, [activeTab, view]);
+
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { 
@@ -83,14 +88,12 @@ export const useAppLogic = () => {
     return () => { unsubMembers(); unsubMeetings(); unsubAllAvail(); };
   }, [user]);
 
-  // ✅ منطق التوجيه والروابط
   useEffect(() => {
     const checkStart = async () => {
         const path = window.location.pathname;
         const isAdminPath = path === '/admin';
         const isRoot = path === '/';
         
-        // لو الرابط غريب -> 404
         if (!isRoot && !isAdminPath) {
             setView('404');
             setIsLoading(false);
