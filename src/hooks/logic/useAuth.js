@@ -19,20 +19,20 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
     initAdmin();
   }, []);
 
-  // Check Auth and Routing on Load
+  // Check Auth on Load
   useEffect(() => {
     const checkStart = async () => {
         const path = window.location.pathname;
         const isAdminPath = path === '/admin';
         const isRoot = path === '/';
         
-        // ✅ الشرط الصارم: لو 404، وقف أي حاجة تانية
+        // ✅ الأولوية القصوى: لو الرابط غلط، اعرض 404 واخرج فوراً
         if (!isRoot && !isAdminPath) {
             ui.setView('404');
             return;
         }
 
-        // لو أنا في صفحة 404 أصلاً، متعملش حاجة تانية (عشان التحديثات متلغيش الـ 404)
+        // لو احنا بالفعل في 404، متعملش حاجة تانية
         if (ui.view === '404') return;
 
         const savedUser = localStorage.getItem('smartScheduleUser');
@@ -64,14 +64,13 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
         }
     };
     
-    // بنشغل الكود ده بس لما الإعدادات تكون جاهزة، أو لو احنا مش مستنيين إعدادات (زي حالة الـ 404)
-    if (!isLoadingSettings || window.location.pathname !== '/' && window.location.pathname !== '/admin') {
+    // الانتظار حتى تحميل الإعدادات إلا لو كنا في مسار فرعي (عشان الـ 404 يظهر بسرعة)
+    if (!isLoadingSettings || (window.location.pathname !== '/' && window.location.pathname !== '/admin')) {
         checkStart();
     }
   }, [isLoadingSettings, settings.isMaintenance]);
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
-      // ... (نفس كود checkRedirect القديم)
       if (userData.role === 'admin') {
           ui.setView('app');
           if(shouldShowToast) ui.showToast(`مرحباً بك يا مدير`);
@@ -101,7 +100,6 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
   };
 
   const handleLogin = async (inputCode) => {
-    // ... (نفس كود handleLogin القديم)
     if (!inputCode) return ui.showToast("يرجى إدخال الكود", "error");
     
     const isAdminPath = window.location.pathname === '/admin';
@@ -132,7 +130,6 @@ export const useAuth = (settings, ui, isLoadingSettings) => {
   };
 
   const handleLogout = () => { 
-      // ... (نفس كود handleLogout القديم)
       localStorage.removeItem('smartScheduleUser'); 
       localStorage.removeItem('hasSeenOnboarding'); 
       setUser(null); 
