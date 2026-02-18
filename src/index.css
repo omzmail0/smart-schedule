@@ -5,62 +5,20 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* ✅ المتغير الأساسي للخط */
-    --app-font: 'Zain', sans-serif;
-  }
-
   body {
     @apply bg-gray-50 text-gray-800;
     direction: rtl;
-    /* ✅ تطبيق المتغير على الصفحة كلها */
-    font-family: var(--app-font);
+    /* ✅ الخط الثابت */
+    font-family: 'Zain', sans-serif;
   }
 }
 
-/* إخفاء شريط التمرير */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* الأنيميشن */
-@keyframes pageEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(15px) scale(0.98);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.page-enter {
-  animation: pageEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
-}
-
-@keyframes loading-bar {
-  0% { transform: translateX(100%); }
-  50% { transform: translateX(0%); }
-  100% { transform: translateX(-100%); }
-}
-
-.animate-loading-bar {
-  animation: loading-bar 1.5s infinite ease-in-out;
-  width: 50%;
-  height: 100%;
-}
-
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
-  50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 2s infinite;
-}
+/* ... باقي الستايلات والأنيميشن زي ما هي */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+@keyframes pageEnter { 0% { opacity: 0; transform: translateY(15px) scale(0.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+.page-enter { animation: pageEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; will-change: transform, opacity; }
+@keyframes loading-bar { 0% { transform: translateX(100%); } 50% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
+.animate-loading-bar { animation: loading-bar 1.5s infinite ease-in-out; width: 50%; height: 100%; }
+@keyframes bounce-slow { 0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); } 50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); } }
+.animate-bounce-slow { animation: bounce-slow 2s infinite; }
