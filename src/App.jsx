@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // ✅ تأكدنا من استيراد useEffect
 import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import NotFound from './components/NotFound';
-import OfflineBanner from './components/common/OfflineBanner'; // ✅ استيراد
+import OfflineBanner from './components/common/OfflineBanner';
 import BottomNav from './components/BottomNav';
 import Header from './components/common/Header';
 import Toast from './components/common/Toast';
@@ -21,6 +21,13 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
+  // ✅ هذا هو الحل: تطبيق الخط فوراً عند تغير الإعدادات
+  useEffect(() => {
+    if (logic.settings.fontFamily) {
+      document.body.style.fontFamily = `"${logic.settings.fontFamily}", sans-serif`;
+    }
+  }, [logic.settings.fontFamily]);
+
   if (logic.isLoading) return <SplashScreen />;
 
   const openAddModal = () => { logic.setMemberForm({ name: '', accessCode: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
@@ -28,7 +35,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
-      {/* ✅ إضافة كاشف الإنترنت هنا ليعمل في كل الصفحات */}
       <OfflineBanner />
 
       {logic.toast && <Toast message={logic.toast.message} type={logic.toast.type} onClose={() => logic.setToast(null)} />}
