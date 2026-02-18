@@ -1,12 +1,25 @@
 import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
-// ... (باقي الاستيرادات زي ما هي)
+import AuthScreen from './components/AuthScreen';
+import OnboardingScreen from './components/OnboardingScreen';
+import MaintenanceScreen from './components/MaintenanceScreen';
+import NotFound from './components/NotFound';
+import OfflineBanner from './components/common/OfflineBanner'; // ✅ تم التصحيح: إضافة الاستيراد المفقود
+import BottomNav from './components/BottomNav';
+import Header from './components/common/Header';
+import Toast from './components/common/Toast';
+import ConfirmModal from './components/common/ConfirmModal';
+import HomeTab from './components/tabs/HomeTab';
+import MembersTab from './components/tabs/MembersTab';
+import SettingsTab from './components/tabs/SettingsTab';
+import AnalysisTab from './components/tabs/AnalysisTab';
+import ProfileTab from './components/tabs/ProfileTab';
+import MemberModal from './components/modals/MemberModal';
+import InspectModal from './components/modals/InspectModal';
 
 export default function App() {
   const logic = useAppLogic();
-
-  // ❌ تم إزالة useEffect الخاص بالخط
 
   if (logic.isLoading) return <SplashScreen />;
 
@@ -15,8 +28,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
-      {/* ... (نفس الـ JSX القديم بدون تغيير) */}
+      {/* ✅ استخدام المكون الآن آمن */}
       <OfflineBanner />
+
       {logic.toast && <Toast message={logic.toast.message} type={logic.toast.type} onClose={() => logic.setToast(null)} />}
       
       <ConfirmModal 
