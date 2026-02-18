@@ -21,8 +21,8 @@ export default {
         },
       },
       fontFamily: {
-        // ✅ نخلي Tailwind يقرا من المتغير بتاعنا
-        sans: ['var(--app-font)', 'sans-serif'],
+        // ✅ رجعناه للأصل: خط زين مباشرة
+        sans: ['Zain', 'sans-serif'],
       },
     },
   },
