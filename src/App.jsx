@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import SplashScreen from './components/common/SplashScreen';
 import AuthScreen from './components/AuthScreen';
@@ -21,22 +21,26 @@ import InspectModal from './components/modals/InspectModal';
 export default function App() {
   const logic = useAppLogic();
 
-  // ✅ التعديل الحاسم: لو الصفحة 404، اعرضها فوراً حتى لو لسه بنحمل
+  // ❌ حذفنا useEffect الخط من هنا (موجود في useFirebase)
+  
   if (logic.view === '404') {
       return <NotFound />;
   }
 
-  // ✅ تطبيق الخط فوراً
-  useEffect(() => {
-    if (logic.settings.fontFamily) {
-      document.documentElement.style.setProperty('--app-font', `"${logic.settings.fontFamily}", sans-serif`);
-    }
-  }, [logic.settings.fontFamily]);
-
   if (logic.isLoading) return <SplashScreen />;
 
-  const openAddModal = () => { logic.setMemberForm({ name: '', accessCode: '' }); logic.setEditingMemberId(null); logic.setIsModalOpen(true); };
-  const openEditModal = (member) => { logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); logic.setEditingMemberId(member.id); logic.setIsModalOpen(true); };
+  // تعريف الدوال خارج الـ JSX لضمان الاستقرار
+  const openAddModal = () => { 
+      logic.setMemberForm({ name: '', accessCode: '' }); 
+      logic.setEditingMemberId(null); 
+      logic.setIsModalOpen(true); 
+  };
+  
+  const openEditModal = (member) => { 
+      logic.setMemberForm({ name: member.name, accessCode: member.accessCode }); 
+      logic.setEditingMemberId(member.id); 
+      logic.setIsModalOpen(true); 
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-blue-100" dir="rtl">
@@ -53,7 +57,6 @@ export default function App() {
         onCancel={() => logic.setConfirmData(null)} 
       />
 
-      {/* باقي الحالات */}
       {logic.view === 'maintenance' ? (
           <MaintenanceScreen settings={logic.settings} />
       ) : logic.view === 'landing' ? (
