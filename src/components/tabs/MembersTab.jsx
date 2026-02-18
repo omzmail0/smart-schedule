@@ -35,28 +35,22 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
 
   const generateAndCopyReport = () => {
       let report = `📝 *متابعة تحديد مواعيد الاجتماع*\n\n`;
-
       if (categorizedMembers.submitted.length > 0) {
           report += `✅ *تم التحديد (${categorizedMembers.submitted.length}):*\n`;
           categorizedMembers.submitted.forEach(m => report += `• ${m.name}\n`);
           report += `\n`;
       }
-
       if (categorizedMembers.busy.length > 0) {
           report += `⛔ *مشغولين (${categorizedMembers.busy.length}):*\n`;
           categorizedMembers.busy.forEach(m => report += `• ${m.name}\n`);
           report += `\n`;
       }
-
       if (categorizedMembers.pending.length > 0) {
           report += `⏳ *في الانتظار (${categorizedMembers.pending.length}):*\n`;
           categorizedMembers.pending.forEach(m => report += `• ${m.name}\n`);
           report += `\n💡 *يا شباب اللي لسه مخلصش، ياريت يدخل ع الموقع بالكود اللي بعتهوله في الخاص ويختار المواعيد المناسبة عشان نلحق نعتمد المعاد.*\n`;
       }
-
-      // ✅ تم تصحيح الرابط
       report += `\nرابط الموقع 👇\nhttps://smart-schedule-liart.vercel.app/`;
-
       navigator.clipboard.writeText(report);
       setIsReportCopied(true);
       setTimeout(() => setIsReportCopied(false), 3000);
@@ -65,7 +59,7 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
   const renderSection = (title, list, colorClass) => {
       if (list.length === 0) return null;
       return (
-          <div className="mb-6 animate-in fade-in slide-in-from-bottom-2">
+          <div className="mb-6"> {/* شلت الأنيميشن الداخلي عشان ميتعارضش مع الأنيميشن الكبير */}
               <div className={`flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg w-fit ${colorClass}`}>
                   <span className="font-bold text-xs">{title}</span>
                   <span className="bg-white/60 px-1.5 py-0.5 rounded text-[10px] font-black min-w-[20px] text-center">{list.length}</span>
@@ -101,7 +95,6 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                         </div>
                     </div>
                 </div>
-                
                 {user.role === 'admin' && (
                     <div className="flex gap-1">
                         {statusKey === 'submitted' && (
@@ -112,7 +105,6 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                     </div>
                 )}
             </div>
-            
             {user.role === 'admin' && (
                 <div className="bg-gray-50 rounded-xl p-2 flex justify-between items-center border border-gray-100 mt-1">
                     <div className="flex items-center gap-2 pl-2">
@@ -131,8 +123,7 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
   };
 
   return (
-    <div className="animate-in fade-in space-y-4 pb-20">
-      
+    <div className="space-y-4 pb-20 page-enter"> {/* ✅ تم التعديل */}
       <div className="flex justify-between items-center px-1 mb-2">
         <h2 className="font-bold text-lg text-gray-800">الأعضاء ({members.length})</h2>
         {user.role === 'admin' && (
@@ -145,14 +136,12 @@ const MembersTab = ({ user, members, availability, openAddModal, openEditModal, 
                     {isReportCopied ? <Check size={14}/> : <FileText size={14}/>}
                     {isReportCopied ? 'تم النسخ' : 'تقرير'}
                 </button>
-
                 <button onClick={openAddModal} className="bg-black text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-80 transition-all shadow-md active:scale-95">
                     <UserPlus size={14}/> إضافة
                 </button>
             </div>
         )}
       </div>
-
       {members.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-gray-200">
              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><UserPlus size={32}/></div>

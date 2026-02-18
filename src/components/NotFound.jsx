@@ -3,7 +3,7 @@ import { SearchX, ArrowRight } from 'lucide-react';
 
 const NotFound = () => {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center page-enter" dir="rtl"> {/* ✅ تم التعديل */}
       
       <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
         <SearchX size={48} className="text-gray-400"/>

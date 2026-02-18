@@ -36,17 +36,15 @@ const OnboardingScreen = ({ onFinish, settings, user }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center page-enter"> {/* ✅ تم التعديل */}
       
       <div className="w-full max-w-sm">
-        {/* Progress Bar */}
         <div className="flex gap-2 mb-10 justify-center">
             {steps.map((_, i) => (
                 <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-8 bg-gray-800' : 'w-2 bg-gray-200'}`}></div>
             ))}
         </div>
 
-        {/* Content */}
         <div className="mb-10 min-h-[250px] flex flex-col items-center justify-center animate-in slide-in-from-bottom-4 duration-500" key={step}>
             <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100">
                 {steps[step].icon}
@@ -57,7 +55,6 @@ const OnboardingScreen = ({ onFinish, settings, user }) => {
             </p>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
             {step > 0 && (
                 <button onClick={handleBack} className="w-14 h-16 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">
@@ -73,7 +70,6 @@ const OnboardingScreen = ({ onFinish, settings, user }) => {
             </Button>
         </div>
       </div>
-
     </div>
   );
 };

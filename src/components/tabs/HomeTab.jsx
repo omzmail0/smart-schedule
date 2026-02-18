@@ -74,15 +74,10 @@ const MeetingCard = ({ meet, settings, isAdmin, onCancel }) => {
 
 const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast, triggerConfirm, onLogout, onCancelMeeting }) => {
   const [isEditingMode, setIsEditingMode] = useState(false);
-
-  // التحقق من وجود مواعيد من المشرف
   const hasAdminSlots = adminSlots && adminSlots.length > 0;
-
   const isMeetingBooked = meetings && meetings.length > 0;
   const userStatus = availability ? availability[user.id] : null;
   const hasSubmitted = userStatus && (userStatus.status === 'busy' || (userStatus.slots && userStatus.slots.length > 0));
-
-  // ✅ تعديل شرط التنبيه: لازم يكون فيه مواعيد متاحة (hasAdminSlots)
   const showAlert = user.role !== 'admin' && !isMeetingBooked && (!hasSubmitted || isEditingMode) && hasAdminSlots;
 
   const getHeaderContent = () => {
@@ -102,12 +97,10 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
   };
 
   const header = getHeaderContent();
-
-  // ✅ شرط لإظهار العنوان: يظهر دائماً للمدير، أو لو فيه اجتماع، أو لو المستخدم بعت رده، أو لو فيه مواعيد متاحة
   const shouldShowHeader = user.role === 'admin' || isMeetingBooked || hasSubmitted || hasAdminSlots;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+    <div className="space-y-8 page-enter"> {/* ✅ تم التعديل */}
         
         {showAlert && (
           <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden animate-in zoom-in-95 duration-500">
@@ -130,7 +123,6 @@ const HomeTab = ({ user, meetings, adminSlots, settings, availability, showToast
         )}
         
         <div>
-           {/* ✅ إخفاء العنوان لو مفيش مواعيد متاحة (للعضو الجديد) */}
            {shouldShowHeader && (
                <h3 className="font-bold text-gray-800 text-sm mb-3 px-1 flex items-center gap-2 transition-all duration-300">
                    {header.icon}

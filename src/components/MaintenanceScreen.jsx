@@ -3,7 +3,7 @@ import { Lock } from 'lucide-react';
 
 const MaintenanceScreen = ({ settings }) => {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center page-enter" dir="rtl"> {/* ✅ تم التعديل */}
       
       <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mb-8 shadow-inner">
         <Lock size={64} className="text-gray-400"/>

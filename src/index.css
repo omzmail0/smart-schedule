@@ -15,15 +15,29 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* --- أنيميشن شاشة التحميل --- */
+/* --- أنيميشن التنقلات السلس (Page Transition) --- */
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
-/* حركة شريط التحميل (يروح وييجي) */
+.page-enter {
+  animation: pageEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* --- أنيميشن شاشة التحميل --- */
 @keyframes loading-bar {
   0% { transform: translateX(100%); }
   50% { transform: translateX(0%); }
@@ -32,7 +46,7 @@
 
 .animate-loading-bar {
   animation: loading-bar 1.5s infinite ease-in-out;
-  width: 50%; /* طول الشريط المتحرك */
+  width: 50%;
   height: 100%;
 }
 

@@ -15,15 +15,14 @@ const AuthScreen = ({ onLogin, settings, onShowToast }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6" dir="rtl">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 page-enter" dir="rtl"> {/* ✅ تم التعديل */}
       
       <div className="max-w-sm mx-auto w-full">
-          <div className="text-center mb-10 animate-fade-in">
+          <div className="text-center mb-10">
             {settings.logo ? 
                 <img src={settings.logo} className="w-28 h-28 mx-auto mb-6 rounded-3xl object-cover shadow-2xl border-4 border-white"/> : 
                 <div className="inline-flex p-6 bg-white rounded-3xl mb-6 shadow-xl border border-gray-100" style={{ color: settings.primaryColor }}><KeyRound size={56}/></div>
             }
-            {/* ✅ التعديل هنا: اسم التيم بدلاً من تسجيل الدخول */}
             <h1 className="text-3xl font-black text-gray-800 mb-2">{settings.teamName}</h1>
             <p className="text-gray-400 font-medium">أدخل الكود الخاص بك للمتابعة</p>
           </div>
@@ -44,7 +43,6 @@ const AuthScreen = ({ onLogin, settings, onShowToast }) => {
                 <p className="text-[10px] text-gray-400 mt-2 font-bold">الكود مكون من 8 أرقام</p>
             </div>
 
-            {/* ✅ التعديل هنا: تسجيل الدخول بدلاً من دخول للنظام */}
             <Button className="w-full h-16 text-lg font-bold shadow-xl text-white rounded-2xl hover:scale-[1.02] transition-transform" style={{ backgroundColor: settings.primaryColor }}>
                 تسجيل الدخول <ArrowRight size={20} className="mr-2"/>
             </Button>
