@@ -5,12 +5,18 @@ import Button from '../Button';
 const SettingsTab = ({ settings, setSettings, saveSettings, resetAllAvailability }) => {
   const fileInputRef = useRef(null);
   
+  // ✅ القائمة الموسعة للخطوط
   const fonts = [
       { name: 'Zain', label: 'زين (عصري)' },
       { name: 'Cairo', label: 'القاهرة (رسمي)' },
       { name: 'Tajawal', label: 'تجوّل (ناعم)' },
       { name: 'Almarai', label: 'المراعي (واضح)' },
       { name: 'IBM Plex Sans Arabic', label: 'IBM (تقني)' },
+      { name: 'Rubik', label: 'روبيك (مودرن)' },
+      { name: 'Noto Kufi Arabic', label: 'كوفي (أنيق)' },
+      { name: 'Readex Pro', label: 'ريديكس (هندسي)' },
+      { name: 'Marhey', label: 'مرحي (شبابي)' },
+      { name: 'Alexandria', label: 'إسكندرية (فخم)' },
   ];
 
   const handleLogoUpload = (e) => { 
@@ -28,7 +34,6 @@ const SettingsTab = ({ settings, setSettings, saveSettings, resetAllAvailability
       saveSettings({ ...settings, isMaintenance: newState });
   };
 
-  // ✅ دالة تغيير الخط للمعاينة الفورية
   const changeFont = (fontName) => {
       setSettings({ ...settings, fontFamily: fontName });
       document.documentElement.style.setProperty('--app-font', `"${fontName}", sans-serif`);
@@ -67,11 +72,11 @@ const SettingsTab = ({ settings, setSettings, saveSettings, resetAllAvailability
             
             <div>
                 <label className="block text-sm font-bold text-gray-500 mb-2 flex items-center gap-1"><Type size={16}/> نوع الخط</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar"> {/* إضافة سكرول للقائمة الطويلة */}
                     {fonts.map(font => (
                         <button 
                             key={font.name}
-                            onClick={() => changeFont(font.name)} // ✅ المعاينة الفورية
+                            onClick={() => changeFont(font.name)} 
                             className={`h-12 rounded-xl text-sm font-bold border-2 transition-all ${settings.fontFamily === font.name ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-600 hover:border-gray-200'}`}
                             style={{ fontFamily: font.name }}
                         >
