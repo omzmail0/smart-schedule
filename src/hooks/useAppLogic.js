@@ -8,7 +8,6 @@ export const useAppLogic = () => {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('landing'); 
   const [activeTab, setActiveTab] = useState('home');
-  // ✅ إضافة fontFamily للإعدادات الافتراضية
   const [settings, setSettings] = useState({ teamName: '...', primaryColor: '#0e395c', logo: null, isMaintenance: false, fontFamily: 'Zain' });
   const [members, setMembers] = useState([]);
   const [meetings, setMeetings] = useState([]);
@@ -33,37 +32,49 @@ export const useAppLogic = () => {
       setConfirmData({ title, message, action, isDestructive });
   };
 
-  // ✅ تطبيق الخط ديناميكياً على كامل الموقع
+  // ✅ تطبيق الخط فوراً عند تغيير الإعدادات (محلياً ومن السيرفر)
   useEffect(() => {
       if (settings.fontFamily) {
-          document.body.style.fontFamily = `"${settings.fontFamily}", sans-serif`;
+          document.documentElement.style.setProperty('--app-font', `"${settings.fontFamily}", sans-serif`);
       }
-  }, [settings.fontFamily]);
+  }, [settings.fontFamily]); // هذا الـ Effect يضمن التحديث اللحظي
 
   // حل مشكلة السكرول
   useEffect(() => {
       window.scrollTo(0, 0);
   }, [activeTab, view]);
 
+  // ✅ مراقبة الإعدادات (بما فيها الصيانة) وتطبيقها فوراً
   useEffect(() => {
     const unsubSettings = onSnapshot(doc(db, "settings", "main"), (docSnap) => { 
         if (docSnap.exists()) { 
             const data = docSnap.data();
             setSettings(data);
             
+            // ✅ التحقق الفوري من حالة الصيانة عند كل تحديث
             const savedUser = localStorage.getItem('smartScheduleUser');
             const currentUser = savedUser ? JSON.parse(savedUser) : null;
             const isAdminPath = window.location.pathname === '/admin';
 
+            // لو الموقع قفل فجأة والمستخدم مش أدمن، اطرده للصيانة فوراً
             if (data.isMaintenance && (!currentUser || currentUser.role !== 'admin') && !isAdminPath) {
                 setView('maintenance');
+            }
+            // لو الموقع فتح وكان في صفحة الصيانة، رجعه للدخول أو التطبيق
+            else if (!data.isMaintenance && view === 'maintenance') {
+                if (currentUser) {
+                    // إعادة توجيه المستخدم المسجل
+                    checkRedirect(currentUser, false);
+                } else {
+                    setView('landing');
+                }
             }
         } 
         else { setSettings({ teamName: 'ميديا صناع الحياة - المنشأة', primaryColor: '#0e395c', logo: null, isMaintenance: false, fontFamily: 'Zain' }); }
         setIsLoading(false); 
     });
     return () => unsubSettings();
-  }, []);
+  }, [view]); // أضفنا view للـ dependency عشان التحديث يبقى دقيق
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
@@ -125,6 +136,8 @@ export const useAppLogic = () => {
             return;
         }
 
+        // لو الصيانة شغالة، محدش يعدي غير الأدمن
+        // (ملاحظة: بنعتمد على الـ snapshot update لضبط الحالة، هنا بس للبداية)
         if (settings.isMaintenance) {
             setView('maintenance');
             return;
@@ -138,7 +151,7 @@ export const useAppLogic = () => {
     };
     
     if (!isLoading) checkStart();
-  }, [isLoading, settings.isMaintenance]); 
+  }, [isLoading]); // شلت settings.isMaintenance من هنا عشان الـ effect اللي فوق هو اللي يسيطر
 
   const checkRedirect = async (userData, shouldShowToast = true) => {
       if (userData.role === 'admin') {
