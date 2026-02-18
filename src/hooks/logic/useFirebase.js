@@ -33,21 +33,27 @@ export const useFirebase = (ui) => {
                 document.documentElement.style.setProperty('--app-font', `"${data.fontFamily}", sans-serif`);
             }
 
-            // ✅ التعديل الحاسم: التأكد من المسار قبل فرض الصيانة
             const path = window.location.pathname;
             const is404 = path !== '/' && path !== '/admin';
             
-            if (is404) return; // لو إحنا في صفحة فرعية (404)، تجاهل وضع الصيانة
+            if (is404) return;
 
             const savedUser = localStorage.getItem('smartScheduleUser');
             const currentUser = savedUser ? JSON.parse(savedUser) : null;
             const isAdminPath = path === '/admin';
 
+            // ✅ التعديل هنا: استخدمنا دالة (callback) بدل الاعتماد المباشر لمنع الـ Loop
+            // أو الأفضل: تجاهل قيمة view الحالية والاعتماد على المنطق فقط
             if (data.isMaintenance && (!currentUser || currentUser.role !== 'admin') && !isAdminPath) {
                 ui.setView('maintenance');
-            } else if (!data.isMaintenance && ui.view === 'maintenance') {
-                if (currentUser) ui.setView('app');
-                else ui.setView('landing');
+            } else if (!data.isMaintenance) {
+                // هنا كان الخطر: كنا بنشيك على ui.view الحالية
+                // الحل: نسيب الـ View يتغير براحته، ولو هو في Maintenance والموقع فتح، يرجع
+                // هنعتمد على فحص بسيط بدون إعادة الاشتراك
+                if (window.location.pathname === '/' || window.location.pathname === '/admin') {
+                     // Check redirection logic separately via another effect if needed
+                     // Or just leave it, users will refresh or use navigation
+                }
             }
         } 
         else { 
@@ -58,7 +64,16 @@ export const useFirebase = (ui) => {
         setIsLoading(false); 
     });
     return () => unsub();
-  }, [ui.view]);
+  }, []); // ✅ شلنا [ui.view] تماماً لمنع الـ Loop
+
+  // ✅ تأثير منفصل للتعامل مع تغييرات الصيانة والـ View بأمان
+  useEffect(() => {
+      if (!settings.isMaintenance && ui.view === 'maintenance') {
+          const savedUser = localStorage.getItem('smartScheduleUser');
+          if (savedUser) ui.setView('app');
+          else ui.setView('landing');
+      }
+  }, [settings.isMaintenance, ui.view]); // ده آمن لأنه مش بيعمل setSettings
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "availability", "admin"), (doc) => { 
